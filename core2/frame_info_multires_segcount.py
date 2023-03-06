@@ -84,35 +84,6 @@ class FrameInfo:
         patch2[:img2_size[0], :img2_size[1], ] = im2
         return (patch1, patch2)
 
-    # Returns all patches in a image, sequentially generated
-    # def sequential_patches(self, patch_size, step_size, normalize):
-    #     """All sequential patches in this frame.
-
-    #     Args:
-    #         patch_size: tuple(int, int)
-    #             Size of the patch.
-    #         step_size: tuple(int, int)
-    #             Total size of the images from which the patch is generated.
-    #         normalize: float
-    #             Probability with which a frame is normalized.
-    #     """
-    #     img_shape = self.img.shape
-    #     x = range(0, img_shape[0] - patch_size[0], step_size[0])
-    #     y = range(0, img_shape[1] - patch_size[1], step_size[1])
-    #     if (img_shape[0] <= patch_size[0]):
-    #         x = [0]
-    #     if (img_shape[1] <= patch_size[1]):
-    #         y = [0]
-
-    #     ic = (min(img_shape[0], patch_size[0]), min(img_shape[1], patch_size[1]))
-    #     xy = [(i, j) for i in x for j in y]
-    #     img_patches = []
-    #     for i, j in xy:
-    #         img_patch = self.getPatch(i, j, patch_size, ic, normalize)
-    #         img_patches.append(img_patch)
-    #     # print(len(img_patches))
-    #     return (img_patches)
-
     # Returns a single patch, startring at a random image
     def random_patch(self, patch_size, normalize, gbnorm):
         """A random from this frame.
