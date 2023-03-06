@@ -50,31 +50,7 @@ class DataGenerator():
         self.boundary_weights = boundary_weights
         self.augmenter = augmenter
 
-    # Return all training and label images and weights, generated sequentially with the given step size
-    # def all_sequential_patches(self, step_size, normalize = 1):
-    #     """Generate all patches from all assigned frames sequentially.
-
-    #         step_size (tuple(int,int)): Size of the step when generating frames.
-    #         normalize (float): Probability with which a frame is normalized.
-    #     """
-    #     patches = []
-    #     for fn in self.frame_list:
-    #         frame = self.frames[fn]
-    #         ps = frame.sequential_patches(self.patch_size, step_size, normalize)
-    #         patches.extend(ps)
-    #     data = np.array(patches)
-    #     img = data[..., self.input_image_channel]
-    #     y = data[..., self.annotation_channel]
-    #     # y would have two channels, i.e. annotations and weights.
-    #     ann = y[...,[0]]
-    #     #boundaries have a weight of 10 other parts of the image has weight 1
-    #     weights = y[...,[1]]
-    #     weights[weights>=0.5] = self.boundary_weights
-    #     # weights[weights>=0.5] = 5 # try lower weights
-    #     weights[weights<0.5] = 1
-    #     ann_joint = np.concatenate((ann,weights), axis=-1)
-    #     return (img, ann_joint)
-
+    
     # Return a batch of training and label images, generated randomly
     def random_patch(self, BATCH_SIZE, normalize):
         """Generate patches from random location in randomly chosen frames.
