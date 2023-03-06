@@ -6,28 +6,16 @@ from functools import reduce
 class Configuration:
     def __init__(self):
         # Initialize the data related variables used in the notebook
-        # For reading the channels and annotated images generated in the Preprocessing step.
-        # In most cases, they will take the same value as in the config/Preprocessing.py
         self.ntasks = 2
         self.multires = 0 # det CHM has same res as color bands
-        # dir where extrected images are
-        # self.base_dir = './extracted_build_v01/'
-        # self.base_dir = './extracted_data_2aux_v4_cleaned_centroids_detCHM_cleanedCHM_norm_cleaned_nolinear/'
         self.base_dir = './extracted_data_2aux_v4_cleaned_centroid_raw/'
         self.image_type = '.png'
         self.grayscale = 0
-#         self.ndvi_fn = 'ndvi'
-#         self.pan_fn = 'pan'
-        # self.extracted_filenames = ['red', 'green', 'blue', 'infrared', 'ndvi', 'chm']
         self.extracted_filenames = ['red', 'green', 'blue']
         # self.channel_names1 = ['red', 'green', 'blue', 'infrared', 'ndvi']
         self.channel_names1 = ['red', 'green', 'blue']
         # self.channel_names2 = ['chm']
         self.image_channels1 = len(self.channel_names1)
-        # self.image_channels2 = len(self.channel_names2)
-        # self.extracted_filenames = ['ch']
-        # self.extracted_filenames = ['red', 'green', 'blue', 'infrared', 'ndvi']
-        # self.extracted_filenames = ['infrared', 'green', 'blue']
         self.annotation_fn = 'annotation'
         self.weight_fn = 'boundary'
         self.density_fn = 'ann_kernel'
