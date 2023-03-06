@@ -1,4 +1,4 @@
-#    Author: Ankit Kariryaa, University of Bremen
+#    Author: Ankit Kariryaa, Sizhuo Li
 
 import imgaug as ia
 from imgaug import augmenters as iaa
@@ -45,7 +45,6 @@ class DataGenerator():
         self.patch_size = patch_size
         self.frame_list = frame_list
         self.frames = frames
-        
         self.augmenter = augmenter
 
     # Return all training and label images and weights, generated sequentially with the given step size
@@ -86,15 +85,9 @@ class DataGenerator():
             chms.append(chm)
             # print("chm shape", chm.shape)
         data = np.array(patches)
-        # print(chm.shape)
         chms = np.array(chms)
-        # print(chms.shape)
-        # chms = chms[..., np.newaxis]
         img = data[..., self.input_image_channel]
-        # print("img shape", img.shape)
-        # ann_joint = data[..., self.annotation_channel]
         return (img, chms)
-#     print("Wrote {} random patches to {} with patch size {}".format(count,write_dir,patch_size))
 
     # Normalization takes a probability between 0 and 1 that an image will be locally normalized.
     def random_generator(self, BATCH_SIZE, normalize = 1, maxmin_norm = 0):
@@ -111,29 +104,8 @@ class DataGenerator():
             if self.augmenter == 'iaa':
                 seq_det = seq.to_deterministic()
                 X = seq_det.augment_images(X)
-                # y would have two channels, i.e. annotations and weights. We need to augment y for operations such as crop and transform
                 y = seq_det.augment_images(y)
-                # Some augmentations can change the value of y, so we re-assign values just to be sure.
-                # ann =  y[...,[0]]
-                # ann[ann<0.5] = 0
-                # ann[ann>=0.5] = 1
-                #boundaries have a weight of 10 other parts of the image has weight 1
-                # weights = y[...,[1]]
-                # # weights[weights>=0.5] = 10
-                # weights[weights>=0.5] = self.boundary_weights #try lower weights
-                # weights[weights<0.5] = 1
-
-                # ann_joint = np.concatenate((ann,weights), axis=-1)
                 yield X, y
             else:
-                # y would have two channels, i.e. annotations and weights.
-                # ann =  y[...,[0]]
-                # #boundaries have a weight of 10 other parts of the image has weight 1
-                # weights = y[...,[1]]
-                # # weights[weights>=0.5] = 10
-                # weights[weights>=0.5] = self.boundary_weights
-                # weights[weights<0.5] = 1
-
-                # ann_joint = np.concatenate((ann,weights), axis=-1)
                 yield X, y
 
