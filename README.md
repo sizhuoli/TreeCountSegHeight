@@ -1,4 +1,4 @@
-# TreeCountSegHeight
+# Tree Counting, Crown Segmentation and Height Prediction
 
 This repo contains code for the paper "Deep learning enables image-based tree counting, crown segmentation and height prediction at national scale", which is published by PNAS Nexus.
 
