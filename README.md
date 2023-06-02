@@ -16,6 +16,12 @@ case1: same input spatial resolution: use config/UNetTraining.py
 
 case2: inputs of different spatial resolution (only support 1/2 coarser resolution for now): use config/UNetTraining_multires.py
 
+--- example data for demonstration ---
+
+example input data in: example_extracted_data/
+
+IMPORTANT: LISCENCE REQUIRED FOR FORMAL USE OF THE DATA! 
+
 --- major tunable hyperparameters ---
 
 boundary weights: determine the penalty on crown boundaries for better individual separation
