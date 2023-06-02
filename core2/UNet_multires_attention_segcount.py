@@ -13,7 +13,7 @@ from tensorflow.keras import regularizers
 import tensorflow.keras.backend as K
 
 
-def UNet(input_shape,input_label_channel, layer_count=64, regularizers = regularizers.l2(0.0001), gaussian_noise=0.1, weight_file = None):
+def UNet(input_shape,input_label_channel, layer_count=64, regularizers = regularizers.l2(0.0001), gaussian_noise=0.1, weight_file = None, inputBN = 0):
         """ Method to declare the UNet model.
 
         Args:
@@ -31,23 +31,29 @@ def UNet(input_shape,input_label_channel, layer_count=64, regularizers = regular
 
         input_img1 = layers.Input((input_shape[1], input_shape[2], 5), name='Input1')
         input_img2 = layers.Input((int(input_shape[1]/2), int(input_shape[2]/2), 1), name='Input2')  # lower resolution input
-        
-        c11 = layers.Conv2D(1*layer_count, (3, 3), activation='relu', padding='same')(input_img1)
+
+        if inputBN:
+            input_img1_bn = layers.BatchNormalization()(input_img1) # 256, 256, n
+            input_img2_bn = layers.BatchNormalization()(input_img2)
+        else:
+            input_img1_bn = input_img1
+            input_img2_bn = input_img2
+        c11 = layers.Conv2D(1*layer_count, (3, 3), activation='relu', padding='same')(input_img1_bn)
         c11 = layers.Conv2D(1*layer_count, (3, 3), activation='relu', padding='same')(c11)
         n11 = layers.BatchNormalization()(c11) # 256, 256, 64
         p11 = layers.MaxPooling2D((2, 2))(n11) # 128, 128, 64
-        c11 = models.Model(inputs=input_img1, outputs=p11)        
+        c11 = models.Model(inputs=input_img1, outputs=p11)
 
-            
-        c12 = layers.Conv2D(1*layer_count, (3, 3), activation='relu', padding='same')(input_img2)
+
+        c12 = layers.Conv2D(1*layer_count, (3, 3), activation='relu', padding='same')(input_img2_bn)
         c12 = layers.Conv2D(1*layer_count, (3, 3), activation='relu', padding='same')(c12)
         n12 = layers.BatchNormalization()(c12) # 128, 128, 64
         c12 = models.Model(inputs=input_img2, outputs=n12)
-        
+
         # concate two input sources
         c20 = layers.concatenate([c11.output, c12.output]) # 128, 128, 64+64
         #batch normal after conc?
-        
+
         # on the combined features
         c2 = layers.Conv2D(2*layer_count, (3, 3), activation='relu', padding='same')(c20)
         c2 = layers.Conv2D(2*layer_count, (3, 3), activation='relu', padding='same')(c2)
@@ -67,97 +73,63 @@ def UNet(input_shape,input_label_channel, layer_count=64, regularizers = regular
         c5 = layers.Conv2D(16*layer_count, (3, 3), activation='relu', padding='same')(p4)
         c5 = layers.Conv2D(16*layer_count, (3, 3), activation='relu', padding='same')(c5)
         n5 = layers.BatchNormalization()(c5)
-        
-        # u6 = layers.UpSampling2D((2, 2))(c5)
-        # u6 = layers.UpSampling2D((2, 2))(n5)
-        # c6 = layers.Conv2D(8*layer_count, (3, 3), activation='relu', padding='same')(u6)
-        # n6 = layers.BatchNormalization()(c6)
-        # u6 = layers.concatenate([n6, n4])
-        # add attention block here
+
+
         u6 = attention_up_and_concate(n5, n4)
         c6 = layers.Conv2D(8*layer_count, (3, 3), activation='relu', padding='same')(u6)
         c6 = layers.Conv2D(8*layer_count, (3, 3), activation='relu', padding='same')(c6)
         #add bn here
         n6 = layers.BatchNormalization()(c6)
 
-        # u7 = layers.UpSampling2D((2, 2))(c6)
-        # c7 = layers.Conv2D(4*layer_count, (3, 3), activation='relu', padding='same')(u7)
-        # n7 = layers.BatchNormalization()(c7)
-        # u7 = layers.concatenate([n7, n3])
+
         u7 = attention_up_and_concate(n6, n3)
         c7 = layers.Conv2D(4*layer_count, (3, 3), activation='relu', padding='same')(u7)
         c7 = layers.Conv2D(4*layer_count, (3, 3), activation='relu', padding='same')(c7)
         n7 = layers.BatchNormalization()(c7)
-        
-        # u8 = layers.UpSampling2D((2, 2))(c7)
-        # c8 = layers.Conv2D(2*layer_count, (3, 3), activation='relu', padding='same')(u8)
-        # n8 = layers.BatchNormalization()(c8)
-        # u8 = layers.concatenate([n8, n2])
+
+
         u8 = attention_up_and_concate(n7, n2)
         c8 = layers.Conv2D(2*layer_count, (3, 3), activation='relu', padding='same')(u8)
         c8 = layers.Conv2D(2*layer_count, (3, 3), activation='relu', padding='same')(c8)
         n8 = layers.BatchNormalization()(c8)
-        
-        # u9 = layers.UpSampling2D((2, 2))(c8)
-        # c9 = layers.Conv2D(1*layer_count, (3, 3), activation='relu', padding='same')(u9)
-        # n9 = layers.BatchNormalization()(c9)
-        # u9 = layers.concatenate([n9, n11], axis=3)
+
+
         u9 = attention_up_and_concate(n8, n11)
         c9 = layers.Conv2D(1*layer_count, (3, 3), activation='relu', padding='same')(u9)
         c9 = layers.Conv2D(1*layer_count, (3, 3), activation='relu', padding='same')(c9)
         n9 = layers.BatchNormalization()(c9)
-        
+
         d = layers.Conv2D(len(input_label_channel), (1, 1), activation='sigmoid', kernel_regularizer= regularizers, name = 'output_seg')(n9)
-        
+
         # density map
         d2 = layers.Conv2D(len(input_label_channel), (1, 1), activation='linear', kernel_regularizer= regularizers, name = 'output_dens')(n9)
 
-        seg_model = models.Model(inputs=[c11.input, c12.input], outputs=[d, d2])
+        seg_model = models.Model(inputs=[input_img1, input_img2], outputs=[d, d2])
         if weight_file:
             seg_model.load_weights(weight_file)
         seg_model.summary()
         return seg_model
 
 
+
 def attention_up_and_concate(down_layer, layer):
-    
+
     in_channel = down_layer.get_shape().as_list()[3]
-
-    # up = Conv2DTranspose(out_channel, [2, 2], strides=[2, 2])(down_layer)
     up = layers.UpSampling2D(size=(2, 2))(down_layer)
-
     layer = attention_block_2d(x=layer, g=up, inter_channel=in_channel // 4)
-
-    
     my_concat = layers.Lambda(lambda x: K.concatenate([x[0], x[1]], axis=3))
-
     concate = my_concat([up, layer])
+
     return concate
 
 
 def attention_block_2d(x, g, inter_channel):
-    # theta_x(?,g_height,g_width,inter_channel)
 
     theta_x = layers.Conv2D(inter_channel, [1, 1], strides=[1, 1])(x)
-
-    # phi_g(?,g_height,g_width,inter_channel)
-
     phi_g = layers.Conv2D(inter_channel, [1, 1], strides=[1, 1])(g)
-
-    # f(?,g_height,g_width,inter_channel)
-
     f = layers.Activation('relu')(layers.add([theta_x, phi_g]))
-
-    # psi_f(?,g_height,g_width,1)
-
     psi_f = layers.Conv2D(1, [1, 1], strides=[1, 1])(f)
-
     rate = layers.Activation('sigmoid')(psi_f)
-
-    # rate(?,x_height,x_width)
-
-    # att_x(?,x_height,x_width,x_channel)
-
     att_x = layers.multiply([x, rate])
 
     return att_x

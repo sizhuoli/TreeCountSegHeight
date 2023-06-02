@@ -60,6 +60,7 @@ class DataGenerator():
         self.boundary_weights = boundary_weights
         self.augmenter = augmenter
 
+    
     # Return a batch of training and label images, generated randomly
     def random_patch(self, BATCH_SIZE, normalize, gbnorm):
         """Generate patches from random location in randomly chosen frames.
@@ -82,6 +83,7 @@ class DataGenerator():
         img1 = data1[..., self.input_image_channel1] # 256, 256, 5
         ann_joint = data1[..., self.annotation_channel]
         return ([img1, img2], ann_joint)
+#     print("Wrote {} random patches to {} with patch size {}".format(count,write_dir,patch_size))
 
     def random_generator(self, BATCH_SIZE, normalize = 1, gb_norm = 0):
         """Generator for random patches, yields random patches from random location in randomly chosen frames.
