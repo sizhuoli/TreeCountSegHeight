@@ -258,7 +258,7 @@ def load_generators(config):
         frames.append(f)
 
     # using all images for both training and validation, may also split
-    training_frames = validation_frames = testing_frames  = list(range(len(frames)))
+    training_frames = validation_frames  = list(range(len(frames)))
 
     annotation_channels = config.input_label_channel + config.input_weight_channel + config.input_density_channel
     train_generator = DataGenerator(config.input_image_channel, config.patch_size, training_frames, frames, annotation_channels, config.boundary_weights, augmenter = 'iaa').random_generator(config.BATCH_SIZE, normalize = config.normalize)
