@@ -6,7 +6,7 @@ Check the paper at: https://doi.org/10.1093/pnasnexus/pgad076. <br />
 
 ## Code structure:
 
-### Tree crown segmentation & density counting:
+### Train model: Tree crown segmentation & density counting:
 
 run main1_multitask_counting_segmentation.py  (bash script: run_script.sh)
 
@@ -32,15 +32,29 @@ normalize: ratio to augment data by randomly normalize image patches
 
 
 
-### Tree height estimation from aerial images:
+### Train model: Tree height estimation from aerial images:
 
 run main2_height_prediction.py
 
 set configs in config/UNetTraining_CHM.py
 
 
+### Test model: segmentation & counting:
 
+run step3_predict_segmentation_counting.py
 
+--- set configs ---
+
+config/Model_compare_multires.py
+
+--- Example prediction ---
+
+See /example_extracted_data/
+
+segmentation result: seg_41.tif
+counting result: density_41.tif
+
+--- Note that the model was trained using image patch no.41, and thus should not be tested using the same image in the test phrase. Here we simply demonstrate how to apply the model on a test image ---
 
 
 ##
