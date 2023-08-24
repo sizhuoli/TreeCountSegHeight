@@ -4,25 +4,52 @@ This repo contains code for the paper "Deep learning enables image-based tree co
 
 Check the paper at: https://doi.org/10.1093/pnasnexus/pgad076. <br />
 
+## Trained models ready for deployment
+
+### Download models:
+
+[https://drive.google.com/file/d/1ZNibrh6pa4-cjXLawua6L96fOKS3uwbn/view?usp=sharing]
+
+Model names:
+
+trees - date - time - optimizer - lr - input bnads - input shape - no. training tiles - segmentation loss - density loss - boundary weight (for separate individual trees) - model . h5 
+
+
+### Working with Google Earth Engine:
+
+[https://github.com/google/earthengine-community/blob/master/guides/linked/Earth_Engine_TensorFlow_tree_counting_model.ipynb]
+
+
+
+
 ## Code structure:
 
-### Train model: Tree crown segmentation & density counting:
+### Train 1st model: Tree crown segmentation & density counting:
 
-run main1_multitask_counting_segmentation.py  (bash script: run_script.sh)
+```
+python main1_multitask_counting_segmentation.py
 
---- set configs ---
+```
+or
 
-case1: same input spatial resolution: use config/UNetTraining.py
+```
+bash run_script.sh
+```
 
-case2: inputs of different spatial resolution (only support 1/2 coarser resolution for now): use config/UNetTraining_multires.py
 
---- example data for demonstration ---
+--- :bookmark: set configs ---
+
+:pushpin:	case1: same input spatial resolution: use config/UNetTraining.py
+
+:pushpin:	case2: inputs of different spatial resolution (only support 1/2 coarser resolution for now): use config/UNetTraining_multires.py
+
+--- :bookmark: example data for demonstration ---
 
 example input data in: example_extracted_data/
 
-IMPORTANT: LISCENCE REQUIRED FOR FORMAL USE OF THE DATA! 
+:warning: IMPORTANT: LISCENCE REQUIRED FOR FORMAL USE OF THE DATA! 
 
---- major tunable hyperparameters ---
+--- :sparkles:	major tunable hyperparameters ---
 
 boundary weights: determine the penalty on crown boundaries for better individual separation
 
@@ -30,24 +57,34 @@ task_ratio: the ratio for weighting the two losses to balance the emphasis on bo
 
 normalize: ratio to augment data by randomly normalize image patches 
 
+-------------------------------------------------------------------------------------------
+
+### Train 2nd model: Tree height estimation from aerial images:
+
+```
+python main2_height_prediction.py
+
+```
+
+--- :bookmark: set configs ---
+
+config/UNetTraining_CHM.py
 
 
-### Train model: Tree height estimation from aerial images:
+-------------------------------------------------------------------------------------------
 
-run main2_height_prediction.py
+### Test 1st model: segmentation & counting:
 
-set configs in config/UNetTraining_CHM.py
+```
+python step3_predict_segmentation_counting.py
 
+```
 
-### Test model: segmentation & counting:
-
-run step3_predict_segmentation_counting.py
-
---- set configs ---
+--- :bookmark: set configs ---
 
 config/Model_compare_multires.py
 
---- Example prediction ---
+--- :flags: Example prediction ---
 
 See /example_extracted_data/
 
@@ -55,7 +92,10 @@ segmentation result: seg_41.tif
 
 counting result: density_41.tif
 
---- Note that the model was trained using image patch no.41, and thus should not be tested using the same image in the test phrase. Here we simply demonstrate how to apply the model on a test image. ---
+:warning: Note that the model was trained using image patch no.41, and thus should not be tested using the same image in the test phrase. Here we simply demonstrate how to apply the model on a test image. ---
+
+
+------------------------------------------------------------------------------------------------
 
 
 ##
