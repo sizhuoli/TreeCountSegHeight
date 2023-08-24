@@ -1,8 +1,6 @@
 # Tree Counting, Crown Segmentation and Height Prediction at Scale
 
-This repo contains code for the paper "Deep learning enables image-based tree counting, crown segmentation and height prediction at national scale", which is published by PNAS Nexus.
-
-Check the paper at: https://doi.org/10.1093/pnasnexus/pgad076. <br />
+This repo contains code for the paper [Deep learning enables image-based tree counting, crown segmentation and height prediction at national scale] (https://doi.org/10.1093/pnasnexus/pgad076.)
 
 ## Trained models ready for deployment
 
@@ -19,22 +17,50 @@ trees - date - time - optimizer - lr - input bnads - input shape - no. training 
 
 https://github.com/google/earthengine-community/blob/master/guides/linked/Earth_Engine_TensorFlow_tree_counting_model.ipynb
 
+### Tips for direct depolyment :sunglasses:	
+
+- Standardize input image patches channel-wise -> ((image-mean)/std)
+
+- For large image, predict with overlap (stride < patch width), take max prediction where overlap
+
+- Upsample / Downsample to match the trained input resolution (20 cm)
+
+- Finetune with small local annotation data
+
+
+## Finetune / Train using local annotation data
+
+### Prepare your own training data
+
+
+![Figure 0](figures/tree_annotation.png)
+
+Figure 0: Preparing your own tree crown annotation dataset. Delineate tree crowns inclusively within each selected annotating area.
+
+#### Finetuning typically requires a small local annotation dataset (< 5 k tree crowns)
 
 
 
 ## Code structure:
+
+
+### Preprocessing for tree crown segmentation and count
+
+```
+python main0_preprocessing.py
+```
+
+--- :bookmark: set configs ---
+
+config/Preprocessing.py
+
+-------------------------------------------------------------------------------------------------------
 
 ### Train 1st model: Tree crown segmentation & density counting:
 
 ```
 python main1_multitask_counting_segmentation.py
 ```
-or
-
-```
-bash run_script.sh
-```
-
 
 --- :bookmark: set configs ---
 
@@ -55,7 +81,7 @@ example input data in: example_extracted_data/
 
 - task_ratio: the ratio for weighting the two losses to balance the emphasis on both tasks during training, may differ from case to case
 
-- normalize: ratio to augment data by randomly normalize image patches 
+- normalize: ratio to augment data by randomly normalizing image patches 
 
 -------------------------------------------------------------------------------------------
 
