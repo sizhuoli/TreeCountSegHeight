@@ -1,6 +1,6 @@
 # Tree Counting, Crown Segmentation and Height Prediction at Scale
 
-This repo contains code for the paper [Deep learning enables image-based tree counting, crown segmentation and height prediction at national scale] (https://doi.org/10.1093/pnasnexus/pgad076.)
+This repo contains code for the paper [Deep learning enables image-based tree counting, crown segmentation and height prediction at national scale](https://doi.org/10.1093/pnasnexus/pgad076. 'link to paper')
 
 ## Trained models ready for deployment
 
