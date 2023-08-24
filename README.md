@@ -35,7 +35,7 @@ https://github.com/google/earthengine-community/blob/master/guides/linked/Earth_
 
 ![Figure 0](figures/tree_annotation.png)
 
-Figure 0: Preparing your own tree crown annotation dataset. Delineate tree crowns inclusively within each selected annotating area.
+Figure 0. Preparing your own tree crown annotation dataset. Delineate tree crowns inclusively within each selected annotating area.
 
 #### Finetuning typically requires a small local annotation dataset (< 5 k tree crowns)
 
@@ -46,7 +46,7 @@ Check details in paper..
 ## Code structure:
 
 
-### Preprocessing for tree crown segmentation and count
+### Preprocessing for tree crown segmentation and counting
 
 ```
 python main0_preprocessing.py
@@ -122,6 +122,15 @@ See /example_extracted_data/
 
 ------------------------------------------------------------------------------------------------
 
+### Large scale prediction
+
+```
+python step4_large_scale_inference_transfer_other_data.py
+```
+
+uploading...
+
+-----------------------------------------------------------------------------------------------
 
 ##
 ![Figure 1](figures/fig1.png)
