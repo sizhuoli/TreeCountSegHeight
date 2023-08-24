@@ -4,7 +4,7 @@ This repo contains code for the paper [Deep learning enables image-based tree co
 
 ## Trained models ready for deployment
 
-### Download models:
+### Download models: :crossed_fingers:
 
 https://drive.google.com/file/d/1ZNibrh6pa4-cjXLawua6L96fOKS3uwbn/view?usp=sharing
 
@@ -13,7 +13,7 @@ Model names:
 trees - date - time - optimizer - lr - input bnads - input shape - no. training tiles - segmentation loss - density loss - boundary weight (for separate individual trees) - model . h5 
 
 
-### Working with Google Earth Engine:
+### Working with Google Earth Engine :muscle:
 
 https://github.com/google/earthengine-community/blob/master/guides/linked/Earth_Engine_TensorFlow_tree_counting_model.ipynb
 
@@ -30,7 +30,7 @@ https://github.com/google/earthengine-community/blob/master/guides/linked/Earth_
 
 ## Finetune / Train using local annotation data
 
-### Prepare your own training data
+### Prepare your own training data :see_no_evil:
 
 
 ![Figure 0](figures/tree_annotation.png)
@@ -38,6 +38,8 @@ https://github.com/google/earthengine-community/blob/master/guides/linked/Earth_
 Figure 0: Preparing your own tree crown annotation dataset. Delineate tree crowns inclusively within each selected annotating area.
 
 #### Finetuning typically requires a small local annotation dataset (< 5 k tree crowns)
+
+Check details in paper..
 
 
 
