@@ -8,7 +8,7 @@ Check the paper at: https://doi.org/10.1093/pnasnexus/pgad076. <br />
 
 ### Download models:
 
-[https://drive.google.com/file/d/1ZNibrh6pa4-cjXLawua6L96fOKS3uwbn/view?usp=sharing]
+https://drive.google.com/file/d/1ZNibrh6pa4-cjXLawua6L96fOKS3uwbn/view?usp=sharing
 
 Model names:
 
@@ -17,7 +17,7 @@ trees - date - time - optimizer - lr - input bnads - input shape - no. training 
 
 ### Working with Google Earth Engine:
 
-[https://github.com/google/earthengine-community/blob/master/guides/linked/Earth_Engine_TensorFlow_tree_counting_model.ipynb]
+https://github.com/google/earthengine-community/blob/master/guides/linked/Earth_Engine_TensorFlow_tree_counting_model.ipynb
 
 
 
@@ -28,7 +28,6 @@ trees - date - time - optimizer - lr - input bnads - input shape - no. training 
 
 ```
 python main1_multitask_counting_segmentation.py
-
 ```
 or
 
@@ -39,9 +38,10 @@ bash run_script.sh
 
 --- :bookmark: set configs ---
 
-:pushpin:	case1: same input spatial resolution: use config/UNetTraining.py
+case1: same input spatial resolution: use config/UNetTraining.py
 
-:pushpin:	case2: inputs of different spatial resolution (only support 1/2 coarser resolution for now): use config/UNetTraining_multires.py
+case2: inputs of different spatial resolution (only support 1/2 coarser resolution for now): use config/UNetTraining_multires.py
+
 
 --- :bookmark: example data for demonstration ---
 
@@ -51,11 +51,11 @@ example input data in: example_extracted_data/
 
 --- :sparkles:	major tunable hyperparameters ---
 
-boundary weights: determine the penalty on crown boundaries for better individual separation
+- boundary weights: determine the penalty on crown boundaries for better individual separation
 
-task_ratio: the ratio for weighting the two losses to balance the emphasis on both tasks during training, may differ from case to case
+- task_ratio: the ratio for weighting the two losses to balance the emphasis on both tasks during training, may differ from case to case
 
-normalize: ratio to augment data by randomly normalize image patches 
+- normalize: ratio to augment data by randomly normalize image patches 
 
 -------------------------------------------------------------------------------------------
 
@@ -63,7 +63,6 @@ normalize: ratio to augment data by randomly normalize image patches
 
 ```
 python main2_height_prediction.py
-
 ```
 
 --- :bookmark: set configs ---
@@ -77,7 +76,6 @@ config/UNetTraining_CHM.py
 
 ```
 python step3_predict_segmentation_counting.py
-
 ```
 
 --- :bookmark: set configs ---
@@ -88,12 +86,11 @@ config/Model_compare_multires.py
 
 See /example_extracted_data/
 
-segmentation result: seg_41.tif
+- segmentation result: seg_41.tif
 
-counting result: density_41.tif
+- counting result: density_41.tif
 
-:warning: Note that the model was trained using image patch no.41, and thus should not be tested using the same image in the test phrase. Here we simply demonstrate how to apply the model on a test image. ---
-
+:warning: Note that the model was trained using image patch no.41, and thus should not be tested using the same image in the test phrase. Here we simply demonstrate how to apply the model on a test image.
 
 ------------------------------------------------------------------------------------------------
 
