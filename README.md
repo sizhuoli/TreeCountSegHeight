@@ -25,7 +25,7 @@ https://github.com/google/earthengine-community/blob/master/guides/linked/Earth_
 
 - Upsample / Downsample to match the trained input resolution (20 cm)
 
-- Finetune with small local annotation data
+- Finetune with small local annotation dataset
 
 
 ## Finetune / Train using local annotation data
