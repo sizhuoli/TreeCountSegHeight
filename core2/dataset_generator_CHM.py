@@ -1,4 +1,4 @@
-#    Author: Ankit Kariryaa, Sizhuo Li
+#    Author: Ankit Kariryaa, University of Bremen
 
 import imgaug as ia
 from imgaug import augmenters as iaa
@@ -45,15 +45,12 @@ class DataGenerator():
         self.patch_size = patch_size
         self.frame_list = frame_list
         self.frames = frames
+        
         self.augmenter = augmenter
 
     # Return all training and label images and weights, generated sequentially with the given step size
     def all_sequential_patches(self, step_size, normalize = 1, maxmin_norm = 0):
-        """Generate all patches from all assigned frames sequentially.
 
-            step_size (tuple(int,int)): Size of the step when generating frames.
-            normalize (float): Probability with which a frame is normalized.
-        """
         patches = []
         chms = []
         for fn in self.frame_list:
@@ -69,12 +66,7 @@ class DataGenerator():
 
     # Return a batch of training and label images, generated randomly
     def random_patch(self, BATCH_SIZE, normalize, maxmin_norm):
-        """Generate patches from random location in randomly chosen frames.
 
-        Args:
-            BATCH_SIZE (int): Number of patches to generate (sampled independently).
-            normalize (float): Probability with which a frame is normalized.
-        """
         patches = []
         chms = []
         for i in range(BATCH_SIZE):
@@ -83,20 +75,15 @@ class DataGenerator():
             patch, chm = frame.random_patch(self.patch_size, normalize, maxmin_norm)
             patches.append(patch)
             chms.append(chm)
-            # print("chm shape", chm.shape)
         data = np.array(patches)
         chms = np.array(chms)
         img = data[..., self.input_image_channel]
+
         return (img, chms)
 
     # Normalization takes a probability between 0 and 1 that an image will be locally normalized.
     def random_generator(self, BATCH_SIZE, normalize = 1, maxmin_norm = 0):
-        """Generator for random patches, yields random patches from random location in randomly chosen frames.
 
-        Args:
-            BATCH_SIZE (int): Number of patches to generate in each yield (sampled independently).
-            normalize (float): Probability with which a frame is normalized.
-        """
         seq = imageAugmentationWithIAA()
 
         while True:
