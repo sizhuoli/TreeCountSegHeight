@@ -9,9 +9,9 @@ Created on Mon Nov  8 13:51:14 2021
 import os
 os.environ['PROJ_LIB'] = '/usr/share/proj'
 os.environ['GDAL_DATA'] = '/usr/share/gdal'
-
-import torch
-import torch.nn.functional as F
+import ipdb
+#import torch
+#import torch.nn.functional as F
 import math
 import rasterio                  # I/O raster data (netcdf, height, geotiff, ...)
 import rasterio.mask
@@ -29,10 +29,13 @@ import json
 import numpy as np               # numerical array manipulation
 import time
 import os
+import glob
 from PIL import Image
 import PIL.ImageDraw
-from core.visualize import display_images
-from core.frame_info import image_normalize
+#from core.visualize import display_images
+from core2.visualize import display_images
+#from core.frame_info import image_normalize
+from core2.frame_info import image_normalize
 import cv2
 from scipy import ndimage
 import matplotlib.pyplot as plt  # plotting tools
@@ -43,6 +46,7 @@ warnings.filterwarnings("ignore")
 
 # %reload_ext autoreload
 # %autoreload 2
+#from IPython.core.interactiveshell import InteractiveShell
 from IPython.core.interactiveshell import InteractiveShell
 InteractiveShell.ast_node_interactivity = "all"
 
@@ -61,7 +65,8 @@ class processor:
         else:
             # no aux
             self.inputImages = readInputImages(config.raw_image_base_dir, config.raw_image_file_type, config.prediction_pre, config.raw_image_prefix, config.single_raster)
-        
+        #self.inputImages = glob.glob(r'C:/Users/a.zenonos/Desktop/Troodos/Troodos_Orthophotos2019/*.tif',recursive=True)
+        #print ('error source',self.inputImages[0])
         print(f'Found a total of {len(self.inputImages)} (pair of) raw image(s) to process!')
         print('Filename:', self.inputImages)
 
@@ -76,25 +81,27 @@ class processor:
             print(f'Assigned training polygons in {len(self.areasWithPolygons)} training areas and created weighted boundaries for ploygons')
 
     def extract_normal(self, boundary = 0, aux = 0):
-        if boundary and aux:
+        if boundary:
             
             
             # Run the main function for extracting part of ndvi and pan images that overlap with training areas
             writeCounter=0
             # multi raster with aux
-            writeCounter = extractAreasThatOverlapWithTrainingData(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames,  self.config.extracted_annotation_filename, self.config.extracted_boundary_filename, self.config.bands , writeCounter, True, self.config.aux_channel_prefixs, self.config.aux_bands,  self.config.single_raster, kernel_size = 15, kernel_sigma = 4)
-            # single raster or multi raster without aux
-            # extractAreasThatOverlapWithTrainingData(inputImages, areasWithPolygons, config.path_to_write, config.extracted_filenames, config.extracted_annotation_filename, config.extracted_boundary_filename, config.bands,  writeCounter, config.single_raster)
+            if aux:
+                writeCounter = extractAreasThatOverlapWithTrainingData(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames,  self.config.extracted_annotation_filename, self.config.extracted_boundary_filename, self.config.bands , writeCounter, True, self.config.aux_channel_prefixs, self.config.aux_bands,  self.config.single_raster, kernel_size = 15, kernel_sigma = 4)
+            else:
+                # single raster or multi raster without aux
+                writeCounter = extractAreasThatOverlapWithTrainingData(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames, self.config.extracted_annotation_filename, self.config.extracted_boundary_filename, self.config.bands,  writeCounter, self.config.single_raster, kernel_size = 15, kernel_sigma = 4)
             
         elif not boundary:
-            # no boundar weights
+            # no boundary weights
             writeCounter=0
             # whether do local normalization
             norm = 1
             if aux:
                 # multi raster with aux
                 writeCounter = extractAreasThatOverlapWithTrainingData(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames,  self.config.extracted_annotation_filename, None, self.config.bands , writeCounter, norm, self.config.aux_channel_prefixs, self.config.aux_bands,  self.config.single_raster, kernel_size = 15, kernel_sigma = 4, detchm = self.config.detchm)
-            elif not aux:
+            else:
                 # no aux
                 writeCounter = extractAreasThatOverlapWithTrainingData(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames,  self.config.extracted_annotation_filename, None, self.config.bands , writeCounter, norm, None, None,  self.config.single_raster, kernel_size = 15, kernel_sigma = 4)
 
@@ -270,11 +277,14 @@ def readInputImages(imageBaseDir, rawImageFileType, predictionPrefix, rawImagePr
     else: #single_raster or not rawAuxPrefix:
         # only one single raster or multi raster without aux
         inputImages = []
+        
         for root, dirs, files in os.walk(imageBaseDir):
             for file in files:
+                #import ipdb; ipdb.set_trace()
                 # not with det in case prediction files exist
-                if file.endswith(rawImageFileType) and not file.startswith(predictionPrefix) and file[0] in rawImagePre:
-                     inputImages.append(os.path.join(root, file))
+                if file.endswith(rawImageFileType) and not file.startswith(predictionPrefix):
+                     inputImages.append(root + '/' + file)
+                    # import ipdb; ipdb.set_trace()#
 
     return inputImages
 
@@ -350,15 +360,20 @@ def writeExtractedImageAndAnnotation(img, sm, profile, polygonsInAreaDf, boundar
             else:
                 if normalize: # Note: If the raster contains None values, then you should normalize it separately by calculating the mean and std without those values.
                     dt = image_normalize(dt, axis=None) # to normalize with means and std computed channel wise #  Normalize the image along the width and height, and since here we only have one channel we pass axis as None
-                
+
+            profile.update(compress='lzw')
             with rasterio.open(os.path.join(writePath, imFn+'_{}.png'.format(writeCounter)), 'w', **profile) as dst:
-                    dst.write(dt, 1)
+                # ipdb.set_trace()
+
+                # np.save(os.path.join(writePath, imFn+'_{}.numpy'.format(writeCounter)))
+                dst.write(dt, 1)
                     
         countFilename = os.path.join(writePath, 'count'+'_{}.npy'.format(writeCounter))
         curcount = len(polygonsInAreaDf)
         np.save(countFilename, curcount)
         
         if annotationFilename:
+            #ipdb.set_trace()
             # print('saving ann')
             annotation_json_filepath = os.path.join(writePath,annotationFilename+'_{}.json'.format(writeCounter))
             # The object is given a value of 1, the outline or the border of the object is given a value of 0 and rest of the image/background is given a a value of 0
@@ -371,6 +386,7 @@ def writeExtractedImageAndAnnotation(img, sm, profile, polygonsInAreaDf, boundar
     except Exception as e:
         print(e)
         print("Something nasty happened, could not write the annotation or the mask file!")
+        ipdb.set_trace()
         return writeCounter
     
     
@@ -636,6 +652,7 @@ def rowColPolygons(areaDf, areaShape, profile, filename, outline, fill, kernel_s
     # using spatial varying label smoothing
     # mask2 = svls_2d(mask, kernel_size = kernel_size_svls, sigma = sigma_svls, channels=1)
     profile['dtype'] = rasterio.int16
+    profile['compress'] = 'lzw'
     with rasterio.open(filename.replace('json', 'png'), 'w', **profile) as dst:
         # print('mask unique', np.unique(mask.astype(rasterio.int16)))
         # plt.figure()
@@ -748,12 +765,8 @@ def generate_density_map_with_fixed_kernel(shape,points,kernel_size=11,sigma=3.5
     print('Using kernel size ', kernel_size)
     print('Using kernel sigma ', sigma)
     f=guassian_kernel([kernel_size,kernel_size],sigma) # generate gaussian kernel with fixed size.
-    #save gaussian kernel
-    np.save('/home/sizhuo/Desktop/denmark10cm/kernel.npy', f)    
 
     normed_f=(1.0/f.sum())*f # normalization for each head.
-    #save gaussian kernel
-    np.save('/home/sizhuo/Desktop/denmark10cm/kernel_norm.npy', normed_f)    
 
     # print('total points', len(points))
     if len(points)==0:
