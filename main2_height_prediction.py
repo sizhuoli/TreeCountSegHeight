@@ -7,7 +7,7 @@ Created on Wed Mar 24 15:56:33 2021
 """
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="1" 
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
 
 import tensorflow as tf

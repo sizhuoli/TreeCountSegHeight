@@ -48,7 +48,7 @@ class Configuration:
         self.input_density_channel = [self.image_channels+2]
         # CNN model related variables used in the notebook
         self.BATCH_SIZE = 8
-        self.NB_EPOCHS = 1000
+        self.NB_EPOCHS = 600
 
         # number of validation images to use
         self.VALID_IMG_COUNT = 100 #200

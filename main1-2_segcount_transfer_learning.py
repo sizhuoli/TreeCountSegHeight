@@ -293,7 +293,7 @@ loaded_model.compile(optimizer=OPTIMIZER, loss={'output_seg': LOSS, 'output_dens
 loss_history = [loaded_model.fit(train_generator,
                                  steps_per_epoch=config.MAX_TRAIN_STEPS,
                                  initial_epoch=1401,
-                                 epochs=1700,
+                                 epochs=initial_epoch + config.NB_EPOCHS,
                                  validation_data=val_generator,
                                  validation_steps=config.VALID_IMG_COUNT,
                                  callbacks=callbacks_list,
