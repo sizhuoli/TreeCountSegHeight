@@ -88,7 +88,7 @@ class processor:
             writeCounter=0
             # multi raster with aux
             if aux:
-                writeCounter = extractAreasThatOverlapWithTrainingData(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames,  self.config.extracted_annotation_filename, self.config.extracted_boundary_filename, self.config.bands , writeCounter, True, self.config.aux_channel_prefixs, self.config.aux_bands,  self.config.single_raster, kernel_size = 15, kernel_sigma = 4)
+                writeCounter = extractAreasThatOverlapWithTrainingData(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames,  self.config.extracted_annotation_filename, self.config.extracted_boundary_filename, self.config.bands , writeCounter, self.config.normalize, self.config.aux_channel_prefixs, self.config.aux_bands,  self.config.single_raster, kernel_size = 15, kernel_sigma = 4)
             else:
                 # single raster or multi raster without aux
                 writeCounter = extractAreasThatOverlapWithTrainingData(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames, self.config.extracted_annotation_filename, self.config.extracted_boundary_filename, self.config.bands,  writeCounter, self.config.single_raster, kernel_size = 15, kernel_sigma = 4)
@@ -96,14 +96,12 @@ class processor:
         elif not boundary:
             # no boundary weights
             writeCounter=0
-            # whether do local normalization
-            norm = 1
             if aux:
                 # multi raster with aux
-                writeCounter = extractAreasThatOverlapWithTrainingData(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames,  self.config.extracted_annotation_filename, None, self.config.bands , writeCounter, norm, self.config.aux_channel_prefixs, self.config.aux_bands,  self.config.single_raster, kernel_size = 15, kernel_sigma = 4, detchm = self.config.detchm)
+                writeCounter = extractAreasThatOverlapWithTrainingData(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames,  self.config.extracted_annotation_filename, None, self.config.bands , writeCounter, self.config.normalize, self.config.aux_channel_prefixs, self.config.aux_bands,  self.config.single_raster, kernel_size = 15, kernel_sigma = 4, detchm = self.config.detchm)
             else:
                 # no aux
-                writeCounter = extractAreasThatOverlapWithTrainingData(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames,  self.config.extracted_annotation_filename, None, self.config.bands , writeCounter, norm, None, None,  self.config.single_raster, kernel_size = 15, kernel_sigma = 4)
+                writeCounter = extractAreasThatOverlapWithTrainingData(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames,  self.config.extracted_annotation_filename, None, self.config.bands , writeCounter, self.config.normalize, None, None,  self.config.single_raster, kernel_size = 15, kernel_sigma = 4)
 
 
         
@@ -190,23 +188,29 @@ def calculateBoundaryWeight(polygonsInArea, scale_polygon = 1.5, output_plot = T
     tempPolygonDf['type'] = tempPolygonDf['geometry'].type 
     tempPolygonDf = tempPolygonDf[tempPolygonDf['type'].isin(['Polygon', 'MultiPolygon'])]
     tempPolygonDf.drop(columns=['type'])
-    
-    bounda = gps.overlay(new_cc, tempPolygonDf, how='difference')
-    if output_plot:
-        # fig, ax = plt.subplots(figsize = (10,10))
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (10,10))
-        bounda.plot(ax=ax1,color = 'red')
-        tempPolygonDf.plot(alpha = 0.2,ax = ax1,color = 'b')
-        # plt.show()
-        ###########################################################
-    
-        bounda.plot(ax=ax2,color = 'red')
-        plt.show()
-    #change multipolygon to polygon
-    bounda = bounda.explode()
-    bounda.reset_index(drop=True,inplace=True)
-    #bounda.to_file('boundary_ready_to_use.shp')
-    return bounda
+    # print('new_cc', new_cc.shape)
+    # print('tempPolygonDf', tempPolygonDf.shape)
+    if new_cc.shape[0] == 0:
+        print('No boundaries')
+        return gps.GeoDataFrame({})
+    else:
+        bounda = gps.overlay(new_cc, tempPolygonDf, how='difference')
+
+        if output_plot:
+            # fig, ax = plt.subplots(figsize = (10,10))
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (10,10))
+            bounda.plot(ax=ax1,color = 'red')
+            tempPolygonDf.plot(alpha = 0.2,ax = ax1,color = 'b')
+            # plt.show()
+            ###########################################################
+
+            bounda.plot(ax=ax2,color = 'red')
+            plt.show()
+        #change multipolygon to polygon
+        bounda = bounda.explode()
+        bounda.reset_index(drop=True,inplace=True)
+        #bounda.to_file('boundary_ready_to_use.shp')
+        return bounda
 
 # As input we received two shapefile, first one contains the training areas/rectangles and other contains the polygon of trees/objects in those training areas
 # The first task is to determine the parent training area for each polygon and generate a weight map based upon the distance of a polygon boundary to other objects.

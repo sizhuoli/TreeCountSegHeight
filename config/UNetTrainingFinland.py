@@ -9,12 +9,12 @@ Created on Sun Feb 28 22:10:30 2021
 class Configuration:
     def __init__(self):
 
-        self.base_dir = '/mnt/ssdc/Finland/segcount_test/extracted_centroids_kernel5/'
+        self.base_dir = 'path_to_local_data'
         self.image_type = '.png'
         
         ##### 
         # add danish data
-        self.base_dir2 = '/mnt/ssda/denmark10cm/extracted_data_2aux_v4_cleaned_centroid_raw/'
+        self.base_dir2 = 'path_to_base_data'
 
         self.extracted_filenames = ['infrared', 'green', 'blue']
         self.annotation_fn = 'annotation'

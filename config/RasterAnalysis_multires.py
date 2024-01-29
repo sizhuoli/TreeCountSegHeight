@@ -6,7 +6,7 @@ class Configuration:
     
     def __init__(self):
         
-        self.input_image_dir = '/home/sizhuo/Desktop/denmark10cm/revision/france/'
+        self.input_image_dir = ''
         self.input_image_type = '.jp2' #'.tif'#'.jp2'
         self.input_image_pref = '0'
         self.channel_names1 = ['red', 'green', 'blue']
@@ -14,7 +14,7 @@ class Configuration:
         self.rgb2gray = 0 # turn on for grayscale prediction
         self.band_switch = 0 # using subset of bands
         self.addndvi = 0
-        self.trained_model_path_chm = '/home/sizhuo/Desktop/denmark10cm/saved_models/color2CHM/UNet/trees_RGB2CHM_20230102-1427_Adam_Wmae_redgreenblue_256_19_frames_unet_attention.h5'
+        self.trained_model_path_chm = 'trees_RGB2CHM_20230102-1427_Adam_Wmae_redgreenblue_256_19_frames_unet_attention.h5'
         self.trained_model_path = ['./saved_models/segcountdensity/trees_20210620-0202_Adam_e4_redgreenblue_256_84_frames_weightmapTversky_MSE100_5weight_complex5.h5']
         self.fillmiss = 0 # only fill in missing preds
         self.segcountpred = 0
@@ -37,7 +37,7 @@ class Configuration:
         self.tasks = 2
         self.change_input_size = 0
         self.input_size = 256 # model input size
-        self.output_dir = '/home/sizhuo/Desktop/denmark10cm/revision/france/pred_m2023/'
+        self.output_dir = 'path_to_output_dir'
         self.output_suffix = '_det_seg' # for segcount
         self.chmdiff_prefix = 'diff_CHM_'
         self.output_image_type = '.tif'

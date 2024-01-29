@@ -2,6 +2,30 @@
 
 This repo contains code for the paper [Deep learning enables image-based tree counting, crown segmentation and height prediction at national scale](https://academic.oup.com/pnasnexus/article/2/4/pgad076/7073732 'link to paper')
 
+
+## NEW!! Training and testing data released for research purposes
+
+
+- Tree crown delineation data now availble [here](https://drive.google.com/drive/folders/1IS_U3pmYmEN_SmQwIVy71aH0wYUhjjsk?usp=sharing)
+
+- Please cite our paper if you find the data useful :)
+
+- Acknowledgements to [Styrelsen for Dataforsyning og Infrastructur](https://sdfi.dk/) and [National Land Survey of Finland](https://www.maanmittauslaitos.fi/en/maps-and-spatial-data/) for open sourcing aeiral images for building the datsets
+ 
+
+### Key features
+
+For the Danish dataset:
+
+- We offer image patches preprocessed in two ways: a. patch-normalization to 0 mean and unit std (used in paper); b. raw patches with orginial pixel intensities.
+
+- There are several empty patches with no crown delineations (used as negative sample for training), which can be removed 
+
+- Coordinates have been removed
+
+
+
+
 ## Trained models ready for deployment
 
 ### Download models: :crossed_fingers:
@@ -26,6 +50,8 @@ https://github.com/google/earthengine-community/blob/master/guides/linked/Earth_
 - Upsample / Downsample to match the trained input resolution (20 cm)
 
 - Finetune with small local annotation dataset
+
+
 
 
 ## Finetune / Train using local annotation data
