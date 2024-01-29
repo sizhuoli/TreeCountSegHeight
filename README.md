@@ -10,7 +10,7 @@ This repo contains code for the paper [Deep learning enables image-based tree co
 
 - Please cite our paper if you find the data useful :)
 
-- Acknowledgements to [Styrelsen for Dataforsyning og Infrastructur](https://sdfi.dk/) and [National Land Survey of Finland](https://www.maanmittauslaitos.fi/en/maps-and-spatial-data/) for open sourcing aeiral images for building the datsets
+- Acknowledgements to [Styrelsen for Dataforsyning og Infrastructur](https://sdfi.dk/) and [National Land Survey of Finland](https://www.maanmittauslaitos.fi/en/maps-and-spatial-data/) for open sourcing aeiral images for building the datasets
  
 
 ### Key features
