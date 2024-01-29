@@ -6,7 +6,7 @@ This repo contains code for the paper [Deep learning enables image-based tree co
 ## NEW!! Training and testing data released for research purposes
 
 
-- Tree crown delineation data now availble [here](https://drive.google.com/drive/folders/1IS_U3pmYmEN_SmQwIVy71aH0wYUhjjsk?usp=sharing)
+- Tree crown delineation data now available [here](https://drive.google.com/drive/folders/1IS_U3pmYmEN_SmQwIVy71aH0wYUhjjsk?usp=sharing)
 
 - Please cite our paper if you find the data useful :)
 
