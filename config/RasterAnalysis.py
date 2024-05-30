@@ -1,24 +1,22 @@
-
-# revision: french data (similar input resolution)
-# load raw tif image, predict, compute error, plot
+# use this config file if input data has different resolutions, eg aerial photos with 20cm resolution and chm with 40cm resolution
 import os
 class Configuration:
     
     def __init__(self):
         
-        self.input_image_dir = ''
-        self.input_image_type = '.jp2' #'.tif'#'.jp2'
-        self.input_image_pref = '0'
-        self.channel_names1 = ['red', 'green', 'blue']
-        self.channels = [0, 1, 2]# g, b, inf
-        self.rgb2gray = 0 # turn on for grayscale prediction
-        self.band_switch = 0 # using subset of bands
+        self.input_image_dir = '/home/sizhuo/Desktop/code_repository/TreeCountSegHeight-main/example_1km_tile_tif/'
+        self.input_image_type = '.tif' #'.tif'#'.jp2'
+        self.input_image_pref = '' # prefix of image file names, can be used to filter out images
+        self.channel_names1 = ['red', 'green', 'blue'] # if four color bands, set to ['red', 'green', 'blue', 'infrared']
+        self.channels = [0, 1, 2] # to take color bands in the correct order (match with the model)
+        self.rgb2gray = 0 # set to 1 if using only grayscale image (convert rgb band to grayscale)
+        self.band_switch = 0 # set to 1 if using only subset of bands or change the order of bands
         self.addndvi = 0
-        self.trained_model_path_chm = 'trees_RGB2CHM_20230102-1427_Adam_Wmae_redgreenblue_256_19_frames_unet_attention.h5'
+        self.trained_model_path_chm = 'placeholder.h5' # set to random string if not predicting height
         self.trained_model_path = ['./saved_models/segcountdensity/trees_20210620-0202_Adam_e4_redgreenblue_256_84_frames_weightmapTversky_MSE100_5weight_complex5.h5']
         self.fillmiss = 0 # only fill in missing preds
-        self.segcountpred = 0
-        self.chmpred = 0 # whether predict for chm
+        self.segcountpred = 1 # whether predict for segcount
+        self.chmpred = 0 # whether predict for height
         self.normalize = 1 # patch norm
         self.segcount_tilenorm = 0
         self.maxnorm = 0
@@ -28,8 +26,8 @@ class Configuration:
         self.robustscaleFI_local = 0
         self.robustscaleFI_gb = 0
         self.localtifnorm = 0
-        self.multires = 0 # for CHM
-        self.downsave = 0 # should be the same as up
+        self.multires = 1 # set to 1 if using chm as input channel for crown segmentation and counting
+        self.downsave = 0 # same as upsample
         self.upsample = 0 # whether the output were upsampled or not
         self.upscale = 0
         self.rescale_values = 0
@@ -37,18 +35,18 @@ class Configuration:
         self.tasks = 2
         self.change_input_size = 0
         self.input_size = 256 # model input size
-        self.output_dir = 'path_to_output_dir'
-        self.output_suffix = '_det_seg' # for segcount
+        self.output_dir = '/home/sizhuo/Desktop/code_repository/TreeCountSegHeight-main/example_1km_tile_tif/predictions/'
+        self.output_suffix = '_seg' # for segcount
         self.chmdiff_prefix = 'diff_CHM_'
         self.output_image_type = '.tif'
-        self.output_prefix = 'det_'#+self.input_image_pref
-        self.output_prefix_chm = 'det_chm_'#+self.input_image_pref
+        self.output_prefix = 'pred_'#+self.input_image_pref
+        self.output_prefix_chm = 'pred_chm_'#+self.input_image_pref
         self.output_shapefile_type = '.shp'
         self.overwrite_analysed_files = False
         self.output_dtype='uint8'
         self.output_dtype_chm='int16'
         self.single_raster = 0
-        self.aux_data = False
+        self.aux_data = False if
         self.operator = "MIX"  # for chm
         self.BATCH_SIZE = 8 # Depends upon GPU memory and WIDTH and HEIGHT (Note: Batch_size for prediction can be different then for training.
         self.WIDTH=256 # crop size
