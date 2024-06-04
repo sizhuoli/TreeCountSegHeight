@@ -119,9 +119,9 @@ Figure 0. Preparing your own tree crown annotation dataset. Delineate tree crown
 
 Get ready: 
 
-1. a proper model downloaded from the link above, matching the color bands of your local data
-2. your small local annotation dataset, prepared in the same structure as the Finland dataset (downloadable with the link above), to convert from shapefile/geopackage to raster images, check main0_preprocessing.py
-3. recommended: the pretraining data (Denmark dataset), downloadable with the link above
+1. A proper model downloaded from the link above, matching the color bands of your local data
+2. Your small local annotation dataset, prepared in the same structure as the Denmark/Finland dataset (downloadable with the link above). To convert from shapefile/geopackage to raster images, check main0_preprocessing.py
+3. Recommended: the pretraining data (Denmark dataset), downloadable with the link above
 4. a correct environment set up with the yml file
 
 --- :bookmark: set configs ---
