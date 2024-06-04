@@ -72,9 +72,9 @@ conda activate tf2151full
 
 Get ready: 
 
-1. aerial images of arbitrary size, preferably with comparable spatial resolution as the training data (20 cm, otherwise may need downsampling or upsampling)
+1. Aerial images of arbitrary size, preferably with comparable spatial resolution as the training data (20 cm, otherwise may need downsampling or upsampling)
 
-2. a proper model downloaded from the link above, or fine-tuned on local data. select a proper model based on the color bands
+2. A proper model downloaded from the link above, or fine-tuned on local data. select a proper model based on the color bands
 
 --- :bookmark: set configs ---
 
@@ -122,7 +122,7 @@ Get ready:
 1. A proper model downloaded from the link above, matching the color bands of your local data
 2. Your small local annotation dataset, prepared in the same structure as the Denmark/Finland dataset (downloadable with the link above). To convert from shapefile/geopackage to raster images, check main0_preprocessing.py
 3. Recommended: the pretraining data (Denmark dataset), downloadable with the link above
-4. a correct environment set up with the yml file
+4. A correct environment set up with the yml file
 
 --- :bookmark: set configs ---
 config/UNetTrainingFinetune.py
