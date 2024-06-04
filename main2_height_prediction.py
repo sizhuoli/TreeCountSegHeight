@@ -63,7 +63,8 @@ config = UNetTraining_CHM.Configuration()
 # Loading data (train and val): read all images/frames into memory
 frames = []
 all_files = os.listdir(config.base_dir)
-all_files_c1 = [fn for fn in all_files if fn.startswith(config.extracted_filenames[0]) and fn.endswith(config.image_type)]for i, fn in tqdm(enumerate(all_files_c1)):
+all_files_c1 = [fn for fn in all_files if fn.startswith(config.extracted_filenames[0]) and fn.endswith(config.image_type)]
+for i, fn in tqdm(enumerate(all_files_c1)):
     comb_img = rasterio.open(os.path.join(config.base_dir, fn)).read()
     if config.single_raster or not config.aux_data:
         for c in range(config.image_channels-1):
