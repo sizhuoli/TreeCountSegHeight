@@ -41,7 +41,56 @@ trees - date - time - optimizer - lr - input bnads - input shape - no. training 
 
 https://github.com/google/earthengine-community/blob/master/guides/linked/Earth_Engine_TensorFlow_tree_counting_model.ipynb
 
-### Tips for direct depolyment :sunglasses:	
+
+### Working with local GPU machine :computer:
+
+#### Set up conda environment
+
+Depending on your GPU driver, you may try the following environment.yml files to set up the conda environment:
+
+1. To set up the same environment:
+```
+conda env create -f environment_trees_updated.yml
+```
+
+2. If the above does not work, try the following to set up the basic environment and install the missing packages manually:
+
+
+```
+conda env create -f environment_trees_updated_basic.yml
+```
+
+
+
+#### Activate the environment
+
+```
+conda activate tf2151full
+```
+
+#### Run predictions
+
+Get ready: 
+
+1. aerial images of arbitrary size, preferably with comparable spatial resolution as the training data (20 cm, otherwise may need downsampling or upsampling)
+
+2. a proper model downloaded from the link above, or fine-tuned on local data. select a proper model based on the color bands
+
+--- :bookmark: set configs ---
+
+config/RasterAnalysis.py
+
+```
+python main4_large_scale_inference_transfer_other_data.py
+```
+
+Example prediction can be found in /example_1km_tile_tif/, where a model trained on RGB bands was applied to a 1 km x 1 km tile of aerial image captured in Denmark. You may reproduce the results by running step4_large_scale_inference_transfer_other_data.py with the provided configs (config/RasterAnalysis.py).
+
+
+
+
+
+#### Tips for direct depolyment :sunglasses:	
 
 - Standardize input image patches channel-wise -> ((image-mean)/std)
 
@@ -65,14 +114,35 @@ Figure 0. Preparing your own tree crown annotation dataset. Delineate tree crown
 
 #### Finetuning typically requires a small local annotation dataset (< 5 k tree crowns)
 
-Check details in paper..
+
+#### Run finetuning
+
+Get ready: 
+
+1. a proper model downloaded from the link above, matching the color bands of your local data
+2. your small local annotation dataset, prepared in the same structure as the Finland dataset (downloadable with the link above), to convert from shapefile/geopackage to raster images, check main0_preprocessing.py
+3. recommended: the pretraining data (Denmark dataset), downloadable with the link above
+4. a correct environment set up with the yml file
+
+--- :bookmark: set configs ---
+config/UNetTrainingFinetune.py
 
 
 
-## Code structure:
+```
+python main1-2_segcount_transfer_learning.py
+
+```
+
+-------------------------------------------------------------------------------------------------------
+
+## Main training code:
+
 
 
 ### Preprocessing for tree crown segmentation and counting
+
+Convert tree crown delineation data (in shapefile or geopackage format) to raster images for training
 
 ```
 python main0_preprocessing.py
@@ -84,7 +154,7 @@ config/Preprocessing.py
 
 -------------------------------------------------------------------------------------------------------
 
-### Train 1st model: Tree crown segmentation & density counting:
+### Train 1st model from scratch: Tree crown segmentation & density counting:
 
 ```
 python main1_multitask_counting_segmentation.py
@@ -113,7 +183,7 @@ example input data in: example_extracted_data/
 
 -------------------------------------------------------------------------------------------
 
-### Train 2nd model: Tree height estimation from aerial images:
+### Train 2nd model from scratch: Tree height estimation from aerial images:
 
 ```
 python main2_height_prediction.py
@@ -126,10 +196,10 @@ config/UNetTraining_CHM.py
 
 -------------------------------------------------------------------------------------------
 
-### Test 1st model: segmentation & counting:
+### Test 1st model (results in the paper): segmentation & counting:
 
 ```
-python step3_predict_segmentation_counting.py
+python main3_predict_segmentation_counting.py
 ```
 
 --- :bookmark: set configs ---
@@ -146,15 +216,6 @@ See /example_extracted_data/
 
 :warning: Note that the model was trained using image patch no.41, and thus should not be tested using the same image in the test phrase. Here we simply demonstrate how to apply the model on a test image.
 
-------------------------------------------------------------------------------------------------
-
-### Large scale prediction
-
-```
-python step4_large_scale_inference_transfer_other_data.py
-```
-
-uploading...
 
 -----------------------------------------------------------------------------------------------
 

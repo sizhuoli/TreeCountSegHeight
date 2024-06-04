@@ -19,12 +19,12 @@ class Configuration:
         # self.aux_prefs = ['ndvi_2018_', 'CHM_']
         self.detchm=0 # for det chm use /extracted_data_2aux_test_v4_centroids_all_classes_final_detchm/
         self.trained_model_paths = [
-                                    './saved_models/segcountdensity/trees_20210620-0202_Adam_e4_redgreenblue_256_84_frames_weightmapTversky_MSE100_5weight_complex5.h5'
+                                    '/home/sizhuo/Desktop/code_repository/tree_crown_mapping_cleaned-main/saved_models/segcountdensity/trees_20210620-0202_Adam_e4_redgreenblue_256_84_frames_weightmapTversky_MSE100_5weight_complex5.h5'
                                     # './saved_models/segcountdensity/trees_20210620-0205_Adam_e4_infraredgreenblue_256_84_frames_weightmapTversky_MSE100_5weight_complex5.h5',
                                     ]
         
         # Output related variables
-        self.output_dir = '/home/sizhuo/Desktop/code_repository/TreeCountSegHeight-main/example_extracted_data/'
+        self.output_dir = '/home/sizhuo/Downloads/test_check'#'/home/sizhuo/Desktop/code_repository/TreeCountSegHeight-main/example_extracted_data/'
         self.operator = 'MAX' 
         self.output_image_type = '.tif' #'.png'
         self.outputseg_prefix = 'seg'
