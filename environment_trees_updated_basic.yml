@@ -1,0 +1,13 @@
+name: tf2151
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip=24
+  - pillow=10.3.0
+  - rasterio=1.3.10
+  - imgaug=0.4.0
+  - scikit-learn=1.5.0
+  - ipython=8.25.0
+  - pip:
+    - tensorflow[and-cuda]==2.15.1
