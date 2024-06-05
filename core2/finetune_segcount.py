@@ -196,7 +196,7 @@ class trainer:
 
         print('initial data loaded, total no. frames: ', len(self.frames))
 
-    def warp_data(self):
+    def wrap_data(self):
 
         training_frames = validation_frames = list(range(len(self.frames)))
 
