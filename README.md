@@ -12,7 +12,7 @@ This repo contains code for the paper [Deep learning enables image-based tree co
 
 - Acknowledgements to [Styrelsen for Dataforsyning og Infrastructur](https://sdfi.dk/) and [National Land Survey of Finland](https://www.maanmittauslaitos.fi/en/maps-and-spatial-data/) for open sourcing aeiral images for building the datasets
  
-- P.S. A data corruption issue was spotted and fixed on 27/09/2024, please download the data again with the new link if you have downloaded it before this date!! The data is now stored in our university's data platform ERDA.
+- P.S. A data corruption issue was spotted and fixed on 27/09/2024, please download the data again if you have downloaded it before this date!! The data is now stored in our university's data platform ERDA.
 
 ### Key features
 
