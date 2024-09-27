@@ -6,12 +6,13 @@ This repo contains code for the paper [Deep learning enables image-based tree co
 ## NEW!! Training and testing data released for research purposes
 
 
-- Tree crown delineation data now available [here](https://drive.google.com/drive/folders/1IS_U3pmYmEN_SmQwIVy71aH0wYUhjjsk?usp=sharing)
+- Tree crown delineation data now available [here](https://sid.erda.dk/sharelink/eFt21tspNe)
 
 - Please cite our paper if you find the data useful :)
 
 - Acknowledgements to [Styrelsen for Dataforsyning og Infrastructur](https://sdfi.dk/) and [National Land Survey of Finland](https://www.maanmittauslaitos.fi/en/maps-and-spatial-data/) for open sourcing aeiral images for building the datasets
  
+- P.S. A data corruption issue was spotted and fixed on 27/09/2024, please download the data again with new link if you have downloaded it before this date!! The data is now stored in our university's data platform ERDA.
 
 ### Key features
 
