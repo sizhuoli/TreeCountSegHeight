@@ -175,8 +175,8 @@ class anaer:
         print('Model(s) loaded')
 
 
-    def segcount_RUN(self,  th = 0.5):
-        predict_ready_run(self.config, self.all_files, self.model, self.model_chm, self.config.output_dir, eva = 0, th = th, rgb2gray = self.config.rgb2gray)
+    def segcount_RUN(self):
+        predict_ready_run(self.config, self.all_files, self.model, self.model_chm, self.config.output_dir, eva = 0, th = self.config.threshold, rgb2gray = self.config.rgb2gray)
         return
 
 
@@ -206,6 +206,12 @@ def load_files(config):
 def addTOResult(res, prediction, row, col, he, wi, operator = 'MAX'):
     currValue = res[row:row+he, col:col+wi]
     newPredictions = prediction[:he, :wi]
+    # set the 4 borderlines to 0 to remove the border effect
+    newPredictions[:10, :] = 0
+    newPredictions[-10:, :] = 0
+    newPredictions[:, :10] = 0
+    newPredictions[:, -10:] = 0
+
 # IMPORTANT: MIN can't be used as long as the mask is initialed with 0!!!!! If you want to use MIN initial the mask with -1 and handle the case of default value(-1) separately.
     if operator == 'MIN': # Takes the min of current prediction and new prediction for each pixel
         currValue [currValue == -1] = 1 #Replace -1 with 1 in case of MIN
@@ -424,7 +430,10 @@ def detect_tree_segcount_fi(config, model, img, width=256, height=256, stride = 
         # stack makes channel first
         # print('rstack tt shape', temp_im1.shape)
         temp_im1 = np.transpose(temp_im1, axes=(1,2,0))
-        temp_im1 = temp_im1[:,:,config.channels]
+        try:
+            temp_im1 = temp_im1[:,:,config.channels]
+        except:
+            ipdb.set_trace()
 
 
         if rgb2gray:

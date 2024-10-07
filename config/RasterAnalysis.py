@@ -4,9 +4,9 @@ class Configuration:
     def __init__(self):
         # a standard approach to predict tree count and segmentation for an example 1km tile with rgb bands and similar spatial resolution as the training data (20cm)
         
-        self.input_image_dir = '/home/sizhuo/Desktop/code_repository/TreeCountSegHeight-main/example_1km_tile_tif/'
+        self.input_image_dir = '/home/sizhuo/Downloads/'#'/home/sizhuo/Desktop/code_repository/TreeCountSegHeight-main/example_1km_tile_tif/'
         self.input_image_type = '.tif' #'.tif'#'.jp2'
-        self.input_image_pref = '' # prefix of image file names, can be used to filter out images
+        self.input_image_pref = '202307' # prefix of image file names, can be used to filter out images
         self.channel_names1 = ['red', 'green', 'blue'] # if four color bands, set to ['red', 'green', 'blue', 'infrared']
         self.channels = [0, 1, 2] # to take color bands in the correct order (match with the model)
         self.rgb2gray = 0 # set to 1 if using only grayscale image (convert rgb band to grayscale)
@@ -38,7 +38,7 @@ class Configuration:
         self.input_shape = (self.input_size, self.input_size, len(self.channels))
         self.input_label_channel = [self.channels]
         self.inputBN = False
-        self.output_dir = '/home/sizhuo/Desktop/code_repository/TreeCountSegHeight-main/example_1km_tile_tif/predictions/'
+        self.output_dir = '/home/sizhuo/Downloads/skysat_test/'#'/home/sizhuo/Desktop/code_repository/TreeCountSegHeight-main/example_1km_tile_tif/predictions/'
         self.output_suffix = '_seg' # for segmentation
         self.chmdiff_prefix = 'diff_CHM_'
         self.output_image_type = '.tif'
@@ -51,10 +51,11 @@ class Configuration:
         self.single_raster = 0
         self.aux_data = False
         self.operator = "MIX"  # for chm
+        self.threshold = 0.00002 # for segmentation
         self.BATCH_SIZE = 256 # Depends upon GPU memory and WIDTH and HEIGHT
         self.WIDTH=256 # crop size
-        self.HEIGHT=256# 
-        self.STRIDE=224 #224 or 196   # STRIDE = WIDTH means no overlap, STRIDE = WIDTH/2 means 50 % overlap in prediction
+        self.HEIGHT=256#
+        self.STRIDE=32 #224 or 196   # STRIDE = WIDTH means no overlap, STRIDE = WIDTH/2 means 50 % overlap in prediction
         if not os.path.exists(self.output_dir):
             os.makedirs(self.output_dir)
             
