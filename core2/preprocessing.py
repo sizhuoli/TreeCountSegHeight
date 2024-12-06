@@ -32,21 +32,17 @@ import os
 import glob
 from PIL import Image
 import PIL.ImageDraw
-#from core.visualize import display_images
 from core2.visualize import display_images
-#from core.frame_info import image_normalize
 from core2.frame_info import image_normalize
 import cv2
 from scipy import ndimage
 import matplotlib.pyplot as plt  # plotting tools
-# %matplotlib inline
 from tqdm import tqdm
 import warnings                  # ignore annoying warnings
 warnings.filterwarnings("ignore")
 
 # %reload_ext autoreload
 # %autoreload 2
-#from IPython.core.interactiveshell import InteractiveShell
 from IPython.core.interactiveshell import InteractiveShell
 InteractiveShell.ast_node_interactivity = "all"
 
@@ -70,7 +66,6 @@ class processor:
         print(f'Found a total of {len(self.inputImages)} (pair of) raw image(s) to process!')
         print('Filename:', self.inputImages)
 
-        
         if boundary: # if compute boundary
             # areasWithPolygons contains the object polygons and weighted boundaries for each area!
             self.areasWithPolygons = dividePolygonsInTrainingAreas(trainingPolygon, trainingArea, self.config)
@@ -82,8 +77,6 @@ class processor:
 
     def extract_normal(self, boundary = 0, aux = 0):
         if boundary:
-            
-            
             # Run the main function for extracting part of ndvi and pan images that overlap with training areas
             writeCounter=0
             # multi raster with aux
@@ -103,9 +96,7 @@ class processor:
                 # no aux
                 writeCounter = extractAreasThatOverlapWithTrainingData(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames,  self.config.extracted_annotation_filename, None, self.config.bands , writeCounter, self.config.normalize, None, None,  self.config.single_raster, kernel_size = 15, kernel_sigma = 4)
 
-
-        
-            
+     
     def extract_svls(self, boundary = 0, aux = 0):
         if not boundary:
             # no boundar weights
@@ -114,7 +105,6 @@ class processor:
             writeCounter = extractAreasThatOverlapWithTrainingData_svls(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames,  self.config.extracted_annotation_filename, None, self.config.bands , writeCounter, self.config.aux_channel_prefixs, self.config.aux_bands,  self.config.single_raster, kernel_size = 15, kernel_sigma = 4, kernel_size_svls = self.config.kernel_size_svls, sigma_svls = self.config.kernel_sigma_svls)
          
         
-
 def load_polygons(config):
     #Read the training area and training polygons
     trainingArea = gps.read_file(os.path.join(config.training_base_dir, config.training_area_fn))
@@ -122,7 +112,6 @@ def load_polygons(config):
     
     print(f'Read a total of {trainingPolygon.shape[0]} object polygons and {trainingArea.shape[0]} training areas.')
     print('Polygons will be assigned to training areas in the next steps.')
-    
     
     #Check if the training areas and the training polygons have the same crs
     if trainingArea.crs  != trainingPolygon.crs:
@@ -137,7 +126,6 @@ def load_polygons(config):
     trainingArea['id'] = range(trainingArea.shape[0])
     
     return trainingPolygon, trainingArea
-
 
 
 # Create boundary from polygon file
@@ -168,7 +156,6 @@ def calculateBoundaryWeight(polygonsInArea, scale_polygon = 1.5, output_plot = T
 
         #invalid intersection operations topo error
         try:
-
             ints = scc.intersection(pol2)
             for k in range(len(ints)):
                 if ints.iloc[k]!=None:
@@ -234,7 +221,6 @@ def dividePolygonsInTrainingAreas(trainingPolygon, trainingArea, config, bound =
             except:
                 print('Labeling Error: polygon number {d1} in area {d2} is nonetype (empty).'.format(d1 = j, d2 = i))
 
-
             # Order of bounds: minx miny maxx maxy
         if bound:
             boundary = calculateBoundaryWeight(spTemp, scale_polygon = 1.5, output_plot = config.show_boundaries_during_processing)
@@ -293,10 +279,6 @@ def readInputImages(imageBaseDir, rawImageFileType, predictionPrefix, rawImagePr
     return inputImages
 
 
-
-
-
-
 def drawPolygons_kernel(polygons, shape, outline, fill):
     """
     From the polygons, create a numpy mask with fill value in the foreground and 0 value in the background.
@@ -318,6 +300,7 @@ def drawPolygons_kernel(polygons, shape, outline, fill):
     # print('unique', np.unique(mask))
     return(mask)
 
+
 def drawPolygons_ann(polygons, shape, outline, fill):
     """
     From the polygons, create a numpy mask with fill value in the foreground and 0 value in the background.
@@ -331,6 +314,7 @@ def drawPolygons_ann(polygons, shape, outline, fill):
         draw.polygon(xy=xy, outline=outline, fill=fill)
     mask = np.array(mask)#, dtype=bool)  
     return(mask)
+
 
 def writeExtractedImageAndAnnotation(img, sm, profile, polygonsInAreaDf, boundariesInAreaDf, writePath, imagesFilename, annotationFilename, boundaryFilename, bands, writeCounter, normalize, kernel_size, kernel_sigma, chm, detchm = 0):
     """
@@ -392,8 +376,6 @@ def writeExtractedImageAndAnnotation(img, sm, profile, polygonsInAreaDf, boundar
         print("Something nasty happened, could not write the annotation or the mask file!")
         ipdb.set_trace()
         return writeCounter
-    
-    
 
 
 def writeExtractedImageAndAnnotation_svls(img, sm, profile, polygonsInAreaDf, boundariesInAreaDf, writePath, imagesFilename, annotationFilename, boundaryFilename, bands, writeCounter, kernel_size, kernel_sigma, kernel_size_svls, sigma_svls, normalize=True):
@@ -427,13 +409,13 @@ def writeExtractedImageAndAnnotation_svls(img, sm, profile, polygonsInAreaDf, bo
     #     rowColPolygons(boundariesInAreaDf,(sm[0].shape[1], sm[0].shape[2]), profile, boundary_json_filepath, outline=1 , fill=1)
     return(writeCounter+1) 
 
+
 def findOverlap_svls(img, areasWithPolygons, writePath, imageFilename, annotationFilename, boundaryFilename, bands, kernel_size, kernel_sigma, kernel_size_svls, sigma_svls, writeCounter=1):
     """
     Finds overlap of image with a training area.
     Use writeExtractedImageAndAnnotation() to write the overlapping training area and corresponding polygons in separate image files.
     """
     overlapppedAreas = set()
-    
     
     for areaID, areaInfo in areasWithPolygons.items():
         #Convert the polygons in the area in a dataframe and get the bounds of the area. 
@@ -445,8 +427,6 @@ def findOverlap_svls(img, areasWithPolygons, writePath, imageFilename, annotatio
             boundariesInAreaDf = None
         bboxArea = box(*areaInfo['bounds'])
         bboxImg = box(*img.bounds)
-        
-    
         
         #Extract the window if area is in the image
         if(bboxArea.intersects(bboxImg)):
@@ -474,7 +454,6 @@ def findOverlap(img, areasWithPolygons, writePath, imageFilename, annotationFile
     """
     overlapppedAreas = set()
     
-    
     for areaID, areaInfo in areasWithPolygons.items():
         #Convert the polygons in the area in a dataframe and get the bounds of the area. 
         polygonsInAreaDf = gps.GeoDataFrame(areaInfo['polygons'])
@@ -484,8 +463,6 @@ def findOverlap(img, areasWithPolygons, writePath, imageFilename, annotationFile
             boundariesInAreaDf = None
         bboxArea = box(*areaInfo['bounds'])
         bboxImg = box(*img.bounds)
-        
-    
         
         #Extract the window if area is in the image
         if(bboxArea.intersects(bboxImg)):
@@ -506,8 +483,6 @@ def findOverlap(img, areasWithPolygons, writePath, imageFilename, annotationFile
             writeCounter = writeExtractedImageAndAnnotation(img, sm, profile, polygonsInAreaDf, boundariesInAreaDf, writePath, imageFilename, annotationFilename, boundaryFilename, bands, writeCounter, normalize, kernel_size, kernel_sigma, chm, detchm)
             overlapppedAreas.add(areaID)
     return(writeCounter, overlapppedAreas)
-
-
 
 
 def extractAreasThatOverlapWithTrainingData_svls(inputImages, areasWithPolygons, writePath, channelNames,  annotationFilename, boundaryFilename, bands, writeCounter, auxChannelNames = None, auxBands = None, singleRaster = 1, kernel_size = 15, kernel_sigma = 4, kernel_size_svls = 3, sigma_svls = 1):
@@ -542,9 +517,6 @@ def extractAreasThatOverlapWithTrainingData_svls(inputImages, areasWithPolygons,
             if overlapppedAreas.intersection(imOverlapppedAreasImg):
                 print(f'Information: Training area(s) {overlapppedAreas.intersection(imOverlapppedAreasImg)} spans over multiple raw images. This is common and expected in many cases. A part was found to overlap with current input image.')
             overlapppedAreas.update(imOverlapppedAreasImg)
-            
-    
-    
     else:
         print('Single raster or multi raster without aux')
         for imgs in tqdm(inputImages):
@@ -557,11 +529,6 @@ def extractAreasThatOverlapWithTrainingData_svls(inputImages, areasWithPolygons,
     if allAreas.difference(overlapppedAreas):
         print(f'Warning: Could not find a raw image correspoinding to {allAreas.difference(overlapppedAreas)} areas. Make sure that you have provided the correct paths!')
     return writeCounter
-
-
-
-
-
 
 
 def extractAreasThatOverlapWithTrainingData(inputImages, areasWithPolygons, writePath, channelNames,  annotationFilename, boundaryFilename, bands, writeCounter, normalize, auxChannelNames = None, auxBands = None, singleRaster = 1, kernel_size = 15, kernel_sigma = 4, detchm = 0):
@@ -591,11 +558,8 @@ def extractAreasThatOverlapWithTrainingData(inputImages, areasWithPolygons, writ
                     print('Processing CHM ')
                     if detchm:
                         ncauxi, imOverlapppedAreasAuxi = findOverlap(auxImgi, areasWithPolygons, writePath=writePath, imageFilename=auxChannelNames[aux], annotationFilename='', boundaryFilename='', bands=auxBands[aux], kernel_size = kernel_size, kernel_sigma = kernel_sigma, normalize = normalize, writeCounter=writeCounter, chm = 1, detchm = detchm )
-
                     else:
-                    
                         ncauxi, imOverlapppedAreasAuxi = findOverlap(auxImgi, areasWithPolygons, writePath=writePath, imageFilename=auxChannelNames[aux], annotationFilename='', boundaryFilename='', bands=auxBands[aux], kernel_size = kernel_size, kernel_sigma = kernel_sigma, normalize = normalize, writeCounter=writeCounter, chm = 1 )
-                    
                 else:
                     ncauxi, imOverlapppedAreasAuxi = findOverlap(auxImgi, areasWithPolygons, writePath=writePath, imageFilename=auxChannelNames[aux], annotationFilename='', boundaryFilename='', bands=auxBands[aux], kernel_size = kernel_size, kernel_sigma = kernel_sigma, normalize = normalize, writeCounter=writeCounter )
                 
@@ -623,7 +587,6 @@ def extractAreasThatOverlapWithTrainingData(inputImages, areasWithPolygons, writ
         print(f'Warning: Could not find a raw image correspoinding to {allAreas.difference(overlapppedAreas)} areas. Make sure that you have provided the correct paths!')
 
     return writeCounter
-
 
 
 def rowColPolygons(areaDf, areaShape, profile, filename, outline, fill, kernel_size, kernel_sigma, gaussian = 0):
@@ -679,7 +642,6 @@ def rowColPolygons(areaDf, areaShape, profile, filename, outline, fill, kernel_s
             # plt.imshow(mask.astype(rasterio.int16))
             dst.write(density_map.astype(rasterio.float32), 1)
     
-    
     return 
 
 
@@ -734,10 +696,7 @@ def rowColPolygons_svls(areaDf, areaShape, profile, filename, outline, fill, ker
         # plt.imshow(mask.astype(rasterio.int16))
         dst.write(density_map.astype(rasterio.float32), 1)
     
-    
     return 
-
-
 
 
 def generate_density_map_with_fixed_kernel(shape,points,kernel_size=11,sigma=3.5):
@@ -762,7 +721,7 @@ def generate_density_map_with_fixed_kernel(shape,points,kernel_size=11,sigma=3.5
                 mean_y2=(y-mean_y)*(y-mean_y)
                 f[x,y]=(1.0/(2.0*np.pi*sigma*sigma))*np.exp((mean_x2+mean_y2)/(-2.0*sigma*sigma))
         return f
-
+     
     
     [rows,cols]=shape[0], shape[1]
     d_map=np.zeros([rows,cols])
@@ -786,10 +745,8 @@ def generate_density_map_with_fixed_kernel(shape,points,kernel_size=11,sigma=3.5
             # if r < 0 or c < 0:
             #     print('negative ro col', r, c)
             ##############
-            
-            
-            
-            
+
+         
             for x in range(0,f.shape[0]):
                 for y in range(0,f.shape[1]):
                     if x+((r+1)-int((f.shape[0]-1)/2))<0 or x+((r+1)-int((f.shape[0]-1)/2))>rows-1 \
@@ -801,11 +758,9 @@ def generate_density_map_with_fixed_kernel(shape,points,kernel_size=11,sigma=3.5
     # print('density summation', d_map.sum())
     return d_map
 
-
-
-
 from scipy import spatial
 from scipy.ndimage.filters import gaussian_filter
+
 
 def gaussian_filter_density(shape,points):
     '''
@@ -860,6 +815,7 @@ def gaussian_filter_density(shape,points):
     # print ('done.')
     return density
 
+
 def get_svls_filter_3d(kernel_size=3, sigma=1, channels=4):
     # Create a x, y, z coordinate grid of shape (kernel_size, kernel_size, kernel_size, 3)
     x_coord = torch.arange(kernel_size)
@@ -897,6 +853,7 @@ def get_svls_filter_3d(kernel_size=3, sigma=1, channels=4):
     svls_filter_3d.weight.requires_grad = False 
     return svls_filter_3d, svls_kernel_3d[0]
 
+
 def svls_3d(label, kernel_size=3, sigma=1, channels=1):
     b, c, d, h, w = 1, 1, 1, np.squeeze(label).shape[0], np.squeeze(label).shape[1]
     # print(b, c, d, h, w)
@@ -910,6 +867,7 @@ def svls_3d(label, kernel_size=3, sigma=1, channels=1):
     y = svls_labels.numpy()
     w = np.squeeze(y)
     return w
+
 
 def get_svls_filter_2d(kernel_size=3, sigma=1, channels=4): # kernel size should be odd number
     # Create a x, y, z coordinate grid of shape (kernel_size, kernel_size, kernel_size, 3)
@@ -958,6 +916,7 @@ def get_svls_filter_2d(kernel_size=3, sigma=1, channels=4): # kernel size should
     # np.save('kern2.npy', svls_kernel_3d)
     return svls_filter_3d, svls_kernel_3d[0]
 
+
 def svls_2d(label, kernel_size=3, sigma=1, channels=1):
     import torch
     import torch.nn.functional as F
@@ -978,4 +937,3 @@ def svls_2d(label, kernel_size=3, sigma=1, channels=1):
     y = svls_labels.numpy()
     w = np.squeeze(y)
     return w
-
