@@ -158,7 +158,7 @@ def calculateBoundaryWeight(polygonsInArea, scale_polygon = 1.5, output_plot = T
         pol1 = gps.GeoSeries(tempPolygonDf.iloc[i][0])
         sc = pol1.scale(xfact=scale_polygon, yfact=scale_polygon, zfact=scale_polygon, origin='center')
         scc = pd.DataFrame(columns=['id', 'geometry'])
-        scc = scc.append({'id': None, 'geometry': sc[0]}, ignore_index=True)
+        scc = scc._append({'id': None, 'geometry': sc[0]}, ignore_index=True)
         scc = gps.GeoDataFrame(pd.concat([scc]*len(tempPolygonDf), ignore_index=True))
 
         pol2 = gps.GeoDataFrame(tempPolygonDf[~tempPolygonDf.index.isin([i])])
