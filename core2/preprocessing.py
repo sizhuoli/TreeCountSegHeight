@@ -591,28 +591,32 @@ def extractAreasThatOverlapWithTrainingData(inputImages, areasWithPolygons, writ
 
 def rowColPolygons(areaDf, areaShape, profile, filename, outline, fill, kernel_size, kernel_sigma, gaussian = 0):
     """
-    Convert polygons coordinates to image pixel coordinates, create annotation image using drawPolygons() and write the results into an image file.
+    Convert polygons coordinates to image pixel coordinates, 
+    create annotation image using drawPolygons() and write the results into an image file.
     """
     transform = profile['transform']
     polygons = []
     polygon_anns = []
+ 
     for i in areaDf.index:
-        # print(i)
         gm = areaDf.loc[i]['geometry']
         a, b = gm.centroid.x, gm.centroid.y
         row, col = rasterio.transform.rowcol(transform, a, b)
-        zipped = list((row,col)) #[list(rc) for rc in list(zip(row,col))]
-        # print(zipped)
-        polygons.append(zipped)
-        
-        c,d = zip(*list(gm.exterior.coords))
+        polygons.append([row, col])
+
+        coords = list(gm.exterior.coords)
+        if len(coords[0]) == 2:  # 2D coordinates (x, y)
+            c, d = zip(*coords)
+        elif len(coords[0]) == 3:  # 3D coordinates (x, y, z)
+            c, d, _ = zip(*coords)  # Ignore z values
+
         row2, col2 = rasterio.transform.rowcol(transform, c, d)
-        zipped2 = list(zip(row2,col2)) #[list(rc) for rc in list(zip(row,col))]
-        polygon_anns.append(zipped2)
+        polygon_anns.append(list(zip(row2, col2)))
+     
     with open(filename, 'w') as outfile:  
         json.dump({'Trees': polygon_anns}, outfile)
+     
     mask = drawPolygons_ann(polygon_anns,areaShape, outline=outline, fill=fill)
-    # profile['dtype'] = rasterio.int16
     
     # # using eudlican distance mask for label smoothing
     # mask2 = ndimage.distance_transform_edt(mask)
@@ -621,11 +625,7 @@ def rowColPolygons(areaDf, areaShape, profile, filename, outline, fill, kernel_s
     profile['dtype'] = rasterio.int16
     profile['compress'] = 'lzw'
     with rasterio.open(filename.replace('json', 'png'), 'w', **profile) as dst:
-        # print('mask unique', np.unique(mask.astype(rasterio.int16)))
-        # plt.figure()
-        # plt.imshow(mask.astype(rasterio.int16))
         dst.write(mask.astype(rasterio.int16), 1)
-        # dst.write(mask2.astype(rasterio.float32), 1)
     
     if gaussian: # create gussian kernels
         # if fixedKernel:
@@ -637,13 +637,8 @@ def rowColPolygons(areaDf, areaShape, profile, filename, outline, fill, kernel_s
         # print(np.unique(density_map))
         profile['dtype'] = rasterio.float32
         with rasterio.open(filename.replace('json', 'png').replace('annotation', 'ann_kernel'), 'w', **profile) as dst:
-            # print('mask unique', np.unique(mask.astype(rasterio.int16)))
-            # plt.figure()
-            # plt.imshow(mask.astype(rasterio.int16))
             dst.write(density_map.astype(rasterio.float32), 1)
-    
-    return 
-
+         
 
 def rowColPolygons_svls(areaDf, areaShape, profile, filename, outline, fill, kernel_size, kernel_sigma, kernel_size_svls, sigma_svls):
     """
