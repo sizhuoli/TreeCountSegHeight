@@ -5,75 +5,148 @@ Created on Mon Nov  8 13:51:14 2021
 
 @author: sizhuo
 """
-
-import os
-os.environ['PROJ_LIB'] = '/usr/share/proj'
-os.environ['GDAL_DATA'] = '/usr/share/gdal'
-import ipdb
-#import torch
-#import torch.nn.functional as F
-import math
-import rasterio                  # I/O raster data (netcdf, height, geotiff, ...)
-import rasterio.mask
-import rasterio.warp             # Reproject raster samples
-import rasterio.merge
-from rasterio.transform import rowcol
-import fiona                     # I/O vector data (shape, geojson, ...)
-import pyproj                    # Change coordinate reference system
-import geopandas as gps
-import pandas as pd
-import shapely
-from shapely.geometry import box, Point
-import json
-
-import numpy as np               # numerical array manipulation
-import time
-import os
-import glob
-from PIL import Image
-import PIL.ImageDraw
-from core2.visualize import display_images
-from core2.frame_info import image_normalize
-import cv2
-from scipy import ndimage
-import matplotlib.pyplot as plt  # plotting tools
-from tqdm import tqdm
-import warnings                  # ignore annoying warnings
-warnings.filterwarnings("ignore")
-
-# %reload_ext autoreload
-# %autoreload 2
-from IPython.core.interactiveshell import InteractiveShell
-InteractiveShell.ast_node_interactivity = "all"
-
-
 # Required configurations (including the input and output paths) are stored in a separate file (such as config/Preprocessing.py)
 # Please provide required info in the file before continuing with this notebook. 
- 
 
-class processor:
-    def __init__(self, config, boundary = 0, aux = 0):
+import os
+import json
+import math
+import logging
+from typing import List, Tuple, Dict, Union
+import numpy as np
+import rasterio 
+import geopandas as gpd
+from shapely.geometry import box, Point
+from PIL import Image, ImageDraw
+from tqdm import tqdm
+import ipdb
+import matplotlib.pyplot as plt
+from rasterio.mask import mask
+from rasterio.transform import rowcol
+from scipy.ndimage import gaussian_filter
+
+from core2.visualize import display_images
+from core2.frame_info import image_normalize
+
+# Configure logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+
+class Processor:
+    """
+    Handles preprocessing tasks including reading input data, processing polygons, and extracting image overlaps.
+    """
+
+    def __init__(self, config, boundary:bool = False, aux:bool = False):
         self.config = config
-        trainingPolygon, trainingArea = load_polygons(self.config)
-        if aux: 
-            # with aux
-            self.inputImages = readInputImages(config.raw_image_base_dir, config.raw_image_file_type, config.prediction_pre, config.raw_image_prefix, config.raw_aux_prefix, config.single_raster)
-        else:
-            # no aux
-            self.inputImages = readInputImages(config.raw_image_base_dir, config.raw_image_file_type, config.prediction_pre, config.raw_image_prefix, config.single_raster)
-        #self.inputImages = glob.glob(r'C:/Users/a.zenonos/Desktop/Troodos/Troodos_Orthophotos2019/*.tif',recursive=True)
-        #print ('error source',self.inputImages[0])
-        print(f'Found a total of {len(self.inputImages)} (pair of) raw image(s) to process!')
-        print('Filename:', self.inputImages)
+        self.training_polygons, self.training_areas = self.load_polygons()
+        self.input_images = self.read_input_images(aux=aux)
+        logging.info(f"Found {len(self.input_images)} input image(s) to process.")
 
-        if boundary: # if compute boundary
-            # areasWithPolygons contains the object polygons and weighted boundaries for each area!
-            self.areasWithPolygons = dividePolygonsInTrainingAreas(trainingPolygon, trainingArea, self.config)
-            print(f'Assigned training polygons in {len(self.areasWithPolygons)} training areas and created weighted boundaries for ploygons')
+        if boundary:
+            self.areas_with_polygons = self.divide_polygons_in_training_areas(boundary=True)
         else:
-            # no boundaries
-            self.areasWithPolygons = dividePolygonsInTrainingAreas(trainingPolygon, trainingArea, self.config, bound = 0)
-            print(f'Assigned training polygons in {len(self.areasWithPolygons)} training areas and created weighted boundaries for ploygons')
+            self.areas_with_polygons = self.divide_polygons_in_training_areas(boundary=False)
+
+    def load_polygons(self) -> Tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
+        """
+        Reads training polygons and areas from configuration paths.
+        Ensures CRS compatibility and assigns IDs to training areas.
+        """
+        training_areas = gpd.read_file(os.path.join(self.config.training_base_dir, self.config.training_area_fn))
+        training_polygons = gpd.read_file(os.path.join(self.config.training_base_dir, self.config.training_polygon_fn))
+        
+        if training_areas.crs  != training_polygons.crs:
+            logging.warning('Training area CRS does not match training_polygon CRS. Reprojecting..."')
+            training_areas = training_areas.to_crs(training_polygons.crs)
+
+        training_areas['id'] = range(training_areas.shape[0])
+        return training_polygons, training_areas
+
+    def read_input_images(self, aux: bool = False) -> List[str]:
+        """
+        Reads input images from the base directory and filters based on file types and prefixes.
+        """     
+        input_images = []
+        for root, _, files in os.walk(self.config.raw_image_base_dir):
+            for file in files:
+                if file.endswith(self.config.raw_image_file_type) and not file.startswith(self.config.prediction_pre):
+                    if aux:
+                        aux_files = [os.path.join(root, file.replace(self.config.raw_image_prefix, aux_file))
+                                     for aux_file in self.config.aux_channel_prefixes]
+                        input_images.append(os.path.join(root, file), *aux_files)
+                    else:
+                        input_images.append(os.path.join(root, file))
+        return input_images
+
+    def divide_polygons_in_training_areas(self, boundary: bool = False) -> Dict[int, Dict]:
+        """
+        Assigns polygons to training areas and optionally computes boundary weights.
+        """
+        polygons_copy = self.training_polygons.copy()
+        split_polygons = {}
+
+        for index, area in self.training_areas.iterrows():
+            polygons_in_area = polygons_copy[polygons_copy.intersects(area.geometry)].copy()
+            polygons_copy = polygons_copy[~polygons_copy.index.isin(polygons_in_area.index)]
+
+            if boundary:
+                boundaries = self.calculate_boundary_weight(polygons_in_area)
+                split_polygons[area.id] = {'polygons': polygons_in_area, 'boundaryWeight': boundaries}
+            else:
+                split_polygons[area.id] = {'polygons': polygons_in_area}
+
+        return split_polygons
+    
+    @staticmethod
+    def calculate_boundary_weight(polygons: gpd.GeoDataFrame, scale: float = 1.5) -> gpd.GeoDataFrame:
+        """
+        Computes weighted boundaries for polygons based on proximity.
+        """
+        if polygons.empty:
+            logging.info("No polygons to compute boundary weights.")
+            return gpd.GeoDataFrame()
+
+        scaled_polygons = polygons.copy()
+        scaled_polygons['geometry'] = scaled_polygons.geometry.buffer(scale)
+        boundaries = gpd.overlay(scaled_polygons, polygons, how='difference')
+        return boundaries
+    
+    def extract_overlapping_areas(self):
+        """
+        Extracts areas of overlap between input images and training areas and saves the results.
+        """
+        for image_path in tqdm(self.input_images):
+            with rasterio.open(image_path) as src:
+                for area_id, area_info in self.areas_with_polygons.items():
+                    self.process_overlap(src, area_id, area_info)  
+
+    def process_overlap(self, src, area_id: int, area_info: Dict):
+        """
+        Processes overlapping regions between an image and a training area.
+        """
+        bbox = box(*src.bounds)
+        area_bbox = box(*area_info['polygons'].total_bounds)
+
+        if not bbox.intersects(area_bbox):
+            return
+
+        overlap, transform = mask(src, [area_bbox], crop=True)
+        profile = src.profile.copy()
+        profile.update({
+            "height": overlap.shape[1],
+            "width": overlap.shape[2],
+            "transform": transform
+        })
+
+        # Save the overlapping region and related annotations
+        self.save_overlapping_data(overlap, profile, area_info)     
+
+    def save_overlapping_data(self, overlap, profile, area_info: Dict):
+        """
+        Saves the overlapping image data, annotations, and boundaries.
+        """
+        pass  # Implement saving logic (images, annotations, etc.)
 
     def extract_normal(self, boundary = 0, aux = 0):
         if boundary:
@@ -105,215 +178,97 @@ class processor:
             writeCounter = extractAreasThatOverlapWithTrainingData_svls(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames,  self.config.extracted_annotation_filename, None, self.config.bands , writeCounter, self.config.aux_channel_prefixs, self.config.aux_bands,  self.config.single_raster, kernel_size = 15, kernel_sigma = 4, kernel_size_svls = self.config.kernel_size_svls, sigma_svls = self.config.kernel_sigma_svls)
          
         
-def load_polygons(config):
-    #Read the training area and training polygons
-    trainingArea = gps.read_file(os.path.join(config.training_base_dir, config.training_area_fn))
-    trainingPolygon = gps.read_file(os.path.join(config.training_base_dir, config.training_polygon_fn))
-    
-    print(f'Read a total of {trainingPolygon.shape[0]} object polygons and {trainingArea.shape[0]} training areas.')
-    print('Polygons will be assigned to training areas in the next steps.')
-    
-    #Check if the training areas and the training polygons have the same crs
-    if trainingArea.crs  != trainingPolygon.crs:
-        print('Training area CRS does not match training_polygon CRS')
-        targetCRS = trainingPolygon.crs #Areas are less in number so conversion should be faster
-        trainingArea = trainingArea.to_crs(targetCRS)
-    print(trainingPolygon.crs)
-    print(trainingArea.crs)
-    assert trainingPolygon.crs == trainingArea.crs
-    
-    # Assign serial IDs to training areas
-    trainingArea['id'] = range(trainingArea.shape[0])
-    
-    return trainingPolygon, trainingArea
 
 
-# Create boundary from polygon file
-def calculateBoundaryWeight(polygonsInArea, scale_polygon = 1.5, output_plot = True): 
-    '''
-    For each polygon, create a weighted boundary where the weights of shared/close boundaries is higher than weights of solitary boundaries.
-    '''
-    # If there are polygons in a area, the boundary polygons return an empty geo dataframe
-    if not polygonsInArea:
-        # print('No polygons')
-        return gps.GeoDataFrame({})
-    tempPolygonDf = pd.DataFrame(polygonsInArea)
-    tempPolygonDf.reset_index(drop=True,inplace=True)
-    tempPolygonDf = gps.GeoDataFrame(tempPolygonDf)
-    new_c = []
-    #for each polygon in area scale, compare with other polygons:
-    for i in tqdm(range(len(tempPolygonDf))):
-        pol1 = gps.GeoSeries(tempPolygonDf.iloc[i]['geometry'])
-        sc = pol1.scale(xfact=scale_polygon, yfact=scale_polygon, zfact=scale_polygon, origin='center')
-        scc = pd.DataFrame(columns=['id', 'geometry'])
-        scc = scc._append({'id': None, 'geometry': sc[0]}, ignore_index=True)
-        scc = gps.GeoDataFrame(pd.concat([scc]*len(tempPolygonDf), ignore_index=True))
 
-        pol2 = gps.GeoDataFrame(tempPolygonDf[~tempPolygonDf.index.isin([i])])
-        #scale pol2 also and then intersect, so in the end no need for scale
-        pol2 = gps.GeoDataFrame(pol2.scale(xfact=scale_polygon, yfact=scale_polygon, zfact=scale_polygon, origin='center'))
-        pol2.columns = ['geometry']
+# # Create boundary from polygon file
+# def calculateBoundaryWeight(polygonsInArea, scale_polygon = 1.5, output_plot = True): 
+#     '''
+#     For each polygon, create a weighted boundary where the weights of shared/close boundaries is higher than weights of solitary boundaries.
+#     '''
+#     # If there are polygons in a area, the boundary polygons return an empty geo dataframe
+#     if not polygonsInArea:
+#         # print('No polygons')
+#         return gpd.GeoDataFrame({})
+#     tempPolygonDf = pd.DataFrame(polygonsInArea)
+#     tempPolygonDf.reset_index(drop=True,inplace=True)
+#     tempPolygonDf = gpd.GeoDataFrame(tempPolygonDf)
+#     new_c = []
+#     #for each polygon in area scale, compare with other polygons:
+#     for i in tqdm(range(len(tempPolygonDf))):
+#         pol1 = gpd.GeoSeries(tempPolygonDf.iloc[i]['geometry'])
+#         sc = pol1.scale(xfact=scale_polygon, yfact=scale_polygon, zfact=scale_polygon, origin='center')
+#         scc = pd.DataFrame(columns=['id', 'geometry'])
+#         scc = scc._append({'id': None, 'geometry': sc[0]}, ignore_index=True)
+#         scc = gpd.GeoDataFrame(pd.concat([scc]*len(tempPolygonDf), ignore_index=True))
 
-        #invalid intersection operations topo error
-        try:
-            ints = scc.intersection(pol2)
-            for k in range(len(ints)):
-                if ints.iloc[k]!=None:
-                    if ints.iloc[k].is_empty !=1:
-                        new_c.append(ints.iloc[k])
-        except:
-            print('Intersection error')
-    new_c = gps.GeoSeries(new_c)
-    new_cc = gps.GeoDataFrame({'geometry': new_c})
-    new_cc.columns = ['geometry']
+#         pol2 = gpd.GeoDataFrame(tempPolygonDf[~tempPolygonDf.index.isin([i])])
+#         #scale pol2 also and then intersect, so in the end no need for scale
+#         pol2 = gpd.GeoDataFrame(pol2.scale(xfact=scale_polygon, yfact=scale_polygon, zfact=scale_polygon, origin='center'))
+#         pol2.columns = ['geometry']
+
+#         #invalid intersection operations topo error
+#         try:
+#             ints = scc.intersection(pol2)
+#             for k in range(len(ints)):
+#                 if ints.iloc[k]!=None:
+#                     if ints.iloc[k].is_empty !=1:
+#                         new_c.append(ints.iloc[k])
+#         except:
+#             print('Intersection error')
+#     new_c = gpd.GeoSeries(new_c)
+#     new_cc = gpd.GeoDataFrame({'geometry': new_c})
+#     new_cc.columns = ['geometry']
     
-    # df may contains point other than polygons
-    new_cc['type'] = new_cc['geometry'].type 
-    new_cc = new_cc[new_cc['type'].isin(['Polygon', 'MultiPolygon'])]
-    new_cc.drop(columns=['type'])
+#     # df may contains point other than polygons
+#     new_cc['type'] = new_cc['geometry'].type 
+#     new_cc = new_cc[new_cc['type'].isin(['Polygon', 'MultiPolygon'])]
+#     new_cc.drop(columns=['type'])
     
-    tempPolygonDf['type'] = tempPolygonDf['geometry'].type 
-    tempPolygonDf = tempPolygonDf[tempPolygonDf['type'].isin(['Polygon', 'MultiPolygon'])]
-    tempPolygonDf.drop(columns=['type'])
-    # print('new_cc', new_cc.shape)
-    # print('tempPolygonDf', tempPolygonDf.shape)
-    if new_cc.shape[0] == 0:
-        print('No boundaries')
-        return gps.GeoDataFrame({})
-    else:
-        bounda = gps.overlay(new_cc, tempPolygonDf, how='difference')
+#     tempPolygonDf['type'] = tempPolygonDf['geometry'].type 
+#     tempPolygonDf = tempPolygonDf[tempPolygonDf['type'].isin(['Polygon', 'MultiPolygon'])]
+#     tempPolygonDf.drop(columns=['type'])
+#     # print('new_cc', new_cc.shape)
+#     # print('tempPolygonDf', tempPolygonDf.shape)
+#     if new_cc.shape[0] == 0:
+#         print('No boundaries')
+#         return gpd.GeoDataFrame({})
+#     else:
+#         bounda = gpd.overlay(new_cc, tempPolygonDf, how='difference')
 
-        if output_plot:
-            # fig, ax = plt.subplots(figsize = (10,10))
-            fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (10,10))
-            bounda.plot(ax=ax1,color = 'red')
-            tempPolygonDf.plot(alpha = 0.2,ax = ax1,color = 'b')
-            # plt.show()
-            ###########################################################
+#         if output_plot:
+#             # fig, ax = plt.subplots(figsize = (10,10))
+#             fig, (ax1, ax2) = plt.subplots(1, 2, figsize = (10,10))
+#             bounda.plot(ax=ax1,color = 'red')
+#             tempPolygonDf.plot(alpha = 0.2,ax = ax1,color = 'b')
+#             # plt.show()
+#             ###########################################################
 
-            bounda.plot(ax=ax2,color = 'red')
-            plt.show()
-        #change multipolygon to polygon
-        bounda = bounda.explode()
-        bounda.reset_index(drop=True,inplace=True)
-        #bounda.to_file('boundary_ready_to_use.shp')
-        return bounda
+#             bounda.plot(ax=ax2,color = 'red')
+#             plt.show()
+#         #change multipolygon to polygon
+#         bounda = bounda.explode()
+#         bounda.reset_index(drop=True,inplace=True)
+#         #bounda.to_file('boundary_ready_to_use.shp')
+#         return bounda
 
 # As input we received two shapefile, first one contains the training areas/rectangles and other contains the polygon of trees/objects in those training areas
 # The first task is to determine the parent training area for each polygon and generate a weight map based upon the distance of a polygon boundary to other objects.
 # Weight map will be used by the weighted loss during the U-Net training
 
-def dividePolygonsInTrainingAreas(trainingPolygon, trainingArea, config, bound = 1):
-    '''
-    Assign annotated ploygons in to the training areas.
-    '''
-    # For efficiency, assigned polygons are removed from the list, we make a copy here. 
-    cpTrainingPolygon = trainingPolygon.copy()
-    splitPolygons = {}
-    for i in tqdm(trainingArea.index):
-        spTemp = []
-        allocated = []
-        for j in cpTrainingPolygon.index:
-            try:
-                if trainingArea.loc[i]['geometry'].intersects(cpTrainingPolygon.loc[j]['geometry']):
-                    spTemp.append(cpTrainingPolygon.loc[j])
-                    allocated.append(j)
-            except:
-                print('Labeling Error: polygon number {d1} in area {d2} is nonetype (empty).'.format(d1 = j, d2 = i))
-
-            # Order of bounds: minx miny maxx maxy
-        if bound:
-            boundary = calculateBoundaryWeight(spTemp, scale_polygon = 1.5, output_plot = config.show_boundaries_during_processing)
-            splitPolygons[trainingArea.loc[i]['id']] = {'polygons':spTemp, 'boundaryWeight': boundary, 'bounds':list(trainingArea.bounds.loc[i]),}
-        else: #no boundary weights
-            splitPolygons[trainingArea.loc[i]['id']] = {'polygons':spTemp, 'bounds':list(trainingArea.bounds.loc[i]),}
-
-        cpTrainingPolygon = cpTrainingPolygon.drop(allocated)
-    return splitPolygons
 
 
-def readInputImages(imageBaseDir, rawImageFileType, predictionPrefix, rawImagePre, rawAuxPrefix = None, single_raster = 1):
+def draw_polygons(polygons: List[List[Tuple[float, float]]], shape: Tuple[int, int], outline: int = 0, fill: int = 1) -> np.ndarray:
     """
-    Reads all multichannel images in the image_base_dir directory. 
-    """     
-    
-    if not single_raster and rawAuxPrefix:
-        # raw multi tif with aux data
-        inputImages = []
-        for root, dirs, files in os.walk(imageBaseDir):
-            for file in files:
-                if type(rawImagePre) == str:
-                    if file.endswith(rawImageFileType) and not file.startswith(predictionPrefix) and file.startswith(rawImagePre):
-                        fileFn = os.path.join(root, file)
-                          
-                        auxFn = []
-                        for aux in rawAuxPrefix:
-                            auxImageFni = fileFn.replace(rawImagePre, aux)
-                            auxFn.append(auxImageFni)
-                        
-                        inputImages.append((fileFn, *auxFn))
-                elif type(rawImagePre) == list:
-                    if file.endswith(rawImageFileType) and not file.startswith(predictionPrefix) and file[0] in rawImagePre:
-                        fileFn = os.path.join(root, file)
-                          
-                        auxFn = []
-                        for aux in rawAuxPrefix:
-                            auxImageFni = fileFn.replace(file[0], aux)
-                            auxFn.append(auxImageFni)
-                        
-                        inputImages.append((fileFn, *auxFn))
-                    
-    
-    else: #single_raster or not rawAuxPrefix:
-        # only one single raster or multi raster without aux
-        inputImages = []
-        
-        for root, dirs, files in os.walk(imageBaseDir):
-            for file in files:
-                #import ipdb; ipdb.set_trace()
-                # not with det in case prediction files exist
-                if file.endswith(rawImageFileType) and not file.startswith(predictionPrefix):
-                     inputImages.append(root + '/' + file)
-                    # import ipdb; ipdb.set_trace()#
-
-    return inputImages
-
-
-def drawPolygons_kernel(polygons, shape, outline, fill):
-    """
-    From the polygons, create a numpy mask with fill value in the foreground and 0 value in the background.
-    Outline (i.e the edge of the polygon) can be assigned a separate value.
+    Creates a numpy mask from polygons with specified outline and fill values.
     """
     mask = np.zeros(shape, dtype=np.uint8)
-    mask = PIL.Image.fromarray(mask)
-    draw = PIL.ImageDraw.Draw(mask)
-    #Syntax: PIL.ImageDraw.Draw.polygon(xy, fill=None, outline=None)
-    #Parameters:
-    #xy – Sequence of either 2-tuples like [(x, y), (x, y), …] or numeric values like [x, y, x, y, …].
-    #outline – Color to use for the outline.
-    #fill – Color to use for the fill.
-    #Returns: An Image object.
-    for polygon in polygons:
-        xy = [(polygon[1], polygon[0])]
-        draw.point(xy=xy, fill=1)
-    mask = np.array(mask)#, dtype=bool)  
-    # print('unique', np.unique(mask))
-    return(mask)
+    pil_mask = Image.fromarray(mask)
+    draw = ImageDraw.Draw(pil_mask)
 
-
-def drawPolygons_ann(polygons, shape, outline, fill):
-    """
-    From the polygons, create a numpy mask with fill value in the foreground and 0 value in the background.
-    Outline (i.e the edge of the polygon) can be assigned a separate value.
-    """
-    mask = np.zeros(shape, dtype=np.uint8)
-    mask = PIL.Image.fromarray(mask)
-    draw = PIL.ImageDraw.Draw(mask)
     for polygon in polygons:
-        xy = [(point[1], point[0]) for point in polygon]
-        draw.polygon(xy=xy, outline=outline, fill=fill)
-    mask = np.array(mask)#, dtype=bool)  
-    return(mask)
+        draw.polygon(polygon, outline=outline, fill=fill)
+    return np.array(pil_mask)
 
 
 def writeExtractedImageAndAnnotation(img, sm, profile, polygonsInAreaDf, boundariesInAreaDf, writePath, imagesFilename, annotationFilename, boundaryFilename, bands, writeCounter, normalize, kernel_size, kernel_sigma, chm, detchm = 0):
@@ -419,10 +374,10 @@ def findOverlap_svls(img, areasWithPolygons, writePath, imageFilename, annotatio
     
     for areaID, areaInfo in areasWithPolygons.items():
         #Convert the polygons in the area in a dataframe and get the bounds of the area. 
-        polygonsInAreaDf = gps.GeoDataFrame(areaInfo['polygons'])
+        polygonsInAreaDf = gpd.GeoDataFrame(areaInfo['polygons'])
         # polygonsInAreaDf = polygonsInAreaDf.explode()
         if 'boundaryWeight' in areaInfo:
-            boundariesInAreaDf = gps.GeoDataFrame(areaInfo['boundaryWeight'])
+            boundariesInAreaDf = gpd.GeoDataFrame(areaInfo['boundaryWeight'])
         else:
             boundariesInAreaDf = None
         bboxArea = box(*areaInfo['bounds'])
@@ -456,9 +411,9 @@ def findOverlap(img, areasWithPolygons, writePath, imageFilename, annotationFile
     
     for areaID, areaInfo in areasWithPolygons.items():
         #Convert the polygons in the area in a dataframe and get the bounds of the area. 
-        polygonsInAreaDf = gps.GeoDataFrame(areaInfo['polygons'])
+        polygonsInAreaDf = gpd.GeoDataFrame(areaInfo['polygons'])
         if 'boundaryWeight' in areaInfo:
-            boundariesInAreaDf = gps.GeoDataFrame(areaInfo['boundaryWeight'])
+            boundariesInAreaDf = gpd.GeoDataFrame(areaInfo['boundaryWeight'])
         else:
             boundariesInAreaDf = None
         bboxArea = box(*areaInfo['bounds'])
@@ -616,7 +571,7 @@ def rowColPolygons(areaDf, areaShape, profile, filename, outline, fill, kernel_s
     with open(filename, 'w') as outfile:  
         json.dump({'Trees': polygon_anns}, outfile)
      
-    mask = drawPolygons_ann(polygon_anns,areaShape, outline=outline, fill=fill)
+    mask = draw_polygons(polygon_anns,areaShape, outline=outline, fill=fill)
     
     # # using eudlican distance mask for label smoothing
     # mask2 = ndimage.distance_transform_edt(mask)
@@ -630,7 +585,7 @@ def rowColPolygons(areaDf, areaShape, profile, filename, outline, fill, kernel_s
     if gaussian: # create gussian kernels
         # if fixedKernel:
         print('****Using fixed kernel****')
-        density_map=generate_density_map_with_fixed_kernel(areaShape,polygons, kernel_size=kernel_size, sigma = kernel_sigma)
+        density_map=generate_gaussian_density_map(areaShape,polygons, kernel_size=kernel_size, sigma = kernel_sigma)
         # elif not fixedKernel:
         # print('****Using k-nearest kernel****')
         # density_map=gaussian_filter_density(areaShape,polygons)
@@ -679,7 +634,7 @@ def rowColPolygons_svls(areaDf, areaShape, profile, filename, outline, fill, ker
     
     # if fixedKernel:
     print('****Using fixed kernel****')
-    density_map=generate_density_map_with_fixed_kernel(areaShape,polygons, kernel_size=kernel_size, sigma = kernel_sigma)
+    density_map=generate_gaussian_density_map(areaShape,polygons, kernel_size=kernel_size, sigma = kernel_sigma)
     # elif not fixedKernel:
     # print('****Using k-nearest kernel****')
     # density_map=gaussian_filter_density(areaShape,polygons)
@@ -694,67 +649,19 @@ def rowColPolygons_svls(areaDf, areaShape, profile, filename, outline, fill, ker
     return 
 
 
-def generate_density_map_with_fixed_kernel(shape,points,kernel_size=11,sigma=3.5):
-    '''
-    img: input image.
-    points: annotated pedestrian's position like [row,col]
-    kernel_size: the fixed size of gaussian kernel, must be odd number.
-    sigma: the sigma of gaussian kernel.
-    return:
-    d_map: density-map we want
-    '''
-    def guassian_kernel(size,sigma):
-        rows=size[0] # mind that size must be odd number.
-        cols=size[1]
-        mean_x=int((rows-1)/2)
-        mean_y=int((cols-1)/2)
+def generate_gaussian_density_map(shape: Tuple[int, int], points: List[Tuple[int, int]], kernel_size: int = 11, sigma: float = 3.5) -> np.ndarray:
+    """
+    Generates a Gaussian density map for given points.
+    """
+    density_map = np.zeros(shape, dtype=np.float32)
+    gaussian_kernel = gaussian_filter(np.zeros((kernel_size, kernel_size)), sigma=sigma)
+    gaussian_kernel /= gaussian_kernel.sum()
 
-        f=np.zeros(size)
-        for x in range(0,rows):
-            for y in range(0,cols):
-                mean_x2=(x-mean_x)*(x-mean_x)
-                mean_y2=(y-mean_y)*(y-mean_y)
-                f[x,y]=(1.0/(2.0*np.pi*sigma*sigma))*np.exp((mean_x2+mean_y2)/(-2.0*sigma*sigma))
-        return f
-     
-    
-    [rows,cols]=shape[0], shape[1]
-    d_map=np.zeros([rows,cols])
-    print('Using kernel size ', kernel_size)
-    print('Using kernel sigma ', sigma)
-    f=guassian_kernel([kernel_size,kernel_size],sigma) # generate gaussian kernel with fixed size.
+    for r, c in points:
+        if 0 <= r < shape[0] and 0 <= c < shape[1]:
+            density_map[r:r + kernel_size, c:c + kernel_size] += gaussian_kernel
 
-    normed_f=(1.0/f.sum())*f # normalization for each head.
-
-    # print('total points', len(points))
-    if len(points)==0:
-        return d_map
-    else:
-        for p in points:
-            r,c=int(p[0]),int(p[1])
-            if r>=rows or c>=cols:
-                # print('larger')
-                continue
-            
-            ##############3
-            # if r < 0 or c < 0:
-            #     print('negative ro col', r, c)
-            ##############
-
-         
-            for x in range(0,f.shape[0]):
-                for y in range(0,f.shape[1]):
-                    if x+((r+1)-int((f.shape[0]-1)/2))<0 or x+((r+1)-int((f.shape[0]-1)/2))>rows-1 \
-                    or y+((c+1)-int((f.shape[1]-1)/2))<0 or y+((c+1)-int((f.shape[1]-1)/2))>cols-1:
-                        continue
-                        # print('skipping cases')
-                    else:
-                        d_map[x+((r+1)-int((f.shape[0]-1)/2)),y+((c+1)-int((f.shape[1]-1)/2))]+=normed_f[x,y]
-    # print('density summation', d_map.sum())
-    return d_map
-
-from scipy import spatial
-from scipy.ndimage.filters import gaussian_filter
+    return density_map
 
 
 def gaussian_filter_density(shape,points):
