@@ -12,14 +12,14 @@ from core2.preprocessing import Processor
 
 config = Preprocessing.Configuration()
 
-prep = Processor(config,boundary = 1, aux = 1)
-prep.extract_normal(boundary = 1, aux = 1)
+prep = Processor(config,boundary = True, aux = True)
+prep.extract_training_sets()
 
 # # no boundary
-# prep = processor(config,boundary = 0, aux = 1)
-# prep.extract_normal(boundary = 0, aux = 1)
+# prep = processor(config, boundary = False, aux = True)
+# prep.extract_training_sets()
 
 # # svls (Spatially Varying Label Smoothing)
-# prep = processor(config,boundary = 0, aux = 1)
-# prep.extract_svls(boundary = 0, aux = 1)
+# prep = processor(config, boundary = False, aux = True)
+# prep.extract_svls
 
