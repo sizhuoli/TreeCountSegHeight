@@ -1,2 +1,5 @@
 config_cisong
 test*
+training*
+raw_image*
+*__pycache__*

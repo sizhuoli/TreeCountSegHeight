@@ -8,11 +8,11 @@ Created on Mon Nov  8 14:19:53 2021
 
 
 from config import Preprocessing
-from core2.preprocessing import processor
+from core2.preprocessing import Processor
 
 config = Preprocessing.Configuration()
 
-prep = processor(config,boundary = 1, aux = 1)
+prep = Processor(config,boundary = 1, aux = 1)
 prep.extract_normal(boundary = 1, aux = 1)
 
 # # no boundary
