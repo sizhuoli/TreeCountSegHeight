@@ -12,26 +12,22 @@ import os
 import json
 import math
 import logging
-from typing import List, Tuple, Dict, Union
+from typing import List, Tuple, Dict
 import numpy as np
 import rasterio 
 import geopandas as gpd
-from shapely.geometry import box, Point
+from shapely.geometry import box
 from PIL import Image, ImageDraw
 from tqdm import tqdm
-import ipdb
-import matplotlib.pyplot as plt
 from rasterio.mask import mask
 from rasterio.transform import rowcol
 from scipy.ndimage import gaussian_filter
 from scipy import spatial
 from warnings import warn
 
-from core2.visualize import display_images
 from core2.frame_info import image_normalize
 
-# Configure logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s') # Configure logging
 
 
 class Processor:
@@ -119,21 +115,22 @@ class Processor:
 
     def _assign_training_polygons_to_areas(self) -> Dict[int, Dict]:
         """
-        Assigns polygons to training areas and optionally computes boundary weights.
+        Determine the parent training area for each polygon and generate a weight map based on the distance of a polygon boundary to other objects.
+        Weight map will be used by the weighted loss during the U-Net training
         """
         polygons_copy = self.training_polygons.copy()
-        split_polygons = {}
+        training_sets = {}
 
         for _, area in self.training_areas.iterrows():
             polygons_in_area = polygons_copy[polygons_copy.intersects(area.geometry)].copy()
             polygons_copy = polygons_copy[~polygons_copy.index.isin(polygons_in_area.index)]
             boundary_weight = self._calculate_boundary_weight(polygons_in_area) if self.boundary else None
-            split_polygons[area.id] = {'polygons': polygons_in_area, 
+            training_sets[area.id] = {'polygons': polygons_in_area, 
                                        'boundary_weight': boundary_weight,
                                        'bounds': area.geometry.bounds
                                        }
 
-        return split_polygons
+        return training_sets
     
     @staticmethod
     def _calculate_boundary_weight(polygons: gpd.GeoDataFrame, scale: float = 1.5) -> gpd.GeoDataFrame:
@@ -150,7 +147,25 @@ class Processor:
         return boundaries
    
     def _find_overlap(self, img, write_counter):
-        """find the overlap between training areas and the imagery"""
+        """
+        Identifies and processes training areas that intersect with the given imagery.
+
+        This method checks whether the bounding boxes of the training areas intersect with the bounding box of the raw image.
+        If an intersection exists, it calls `_write_extrated_image_and_annotation()` to extract and save the overlapping imagery
+        and annotations within the training area.
+
+        Note:
+            This method is necessary but may not be sufficient for ensuring complete overlap between training areas and the image.
+
+        Args:
+            img: The input image (as a rasterio object) to check for overlaps with the training areas.
+            write_counter (int): A counter used to track the number of images and annotations written to output.
+
+        Returns:
+            tuple:
+                - write_counter (int): Updated counter after processing the overlapping areas.
+                - img_overlap_areas (set): A set of area IDs that overlap with the image.
+        """
         img_overlap_areas = set()
 
         for area_id, area_info in tqdm(self.training_sets.items()):
@@ -160,7 +175,6 @@ class Processor:
             area_bbox = box(*area_info['bounds'])
             img_bbox = box(*img.bounds)
 
-            # Extract the window if area is in the image
             if not area_bbox.intersects(img_bbox):
                 continue
 
@@ -171,6 +185,8 @@ class Processor:
                 "height": overlap.shape[1],
                 "width": overlap.shape[2],
                 "transform": transform,
+                "compress": 'lzw',
+                "dtype": rasterio.float32
                 })
             
             write_counter = self._write_extrated_image_and_annotation(overlap, profile, polygons_in_area, boundaries_df, write_counter)
@@ -187,8 +203,7 @@ class Processor:
         for band, band_name in zip(self.config.bands, self.config.extracted_filenames):
             data = overlap[band].astype(profile['dtype'])
             data = image_normalize(data, axis=None) if self.config.normalize else data
-            profile.update(compress='lzw')
-            output_path = os.path.join(self.config.path_to_write, f"{band_name}_{write_counter}.png")
+            output_path = os.path.join(self.config.path_to_write, f"{band_name}_{write_counter}.{self.config.extracted_file_type}")
 
             with rasterio.open(output_path, 'w', **profile) as dst:
                 dst.write(data, 1)
@@ -208,24 +223,90 @@ class Processor:
             writeCounter=0
             # multi raster with aux
             writeCounter = extractAreasThatOverlapWithTrainingData_svls(self.inputImages, self.areasWithPolygons, self.config.path_to_write, self.config.extracted_filenames,  self.config.extracted_annotation_filename, None, self.config.bands , writeCounter, self.config.aux_channel_prefixs, self.config.aux_bands,  self.config.single_raster, kernel_size = 15, kernel_sigma = 4, kernel_size_svls = self.config.kernel_size_svls, sigma_svls = self.config.kernel_sigma_svls)
-         
-
-# As input we received two shapefile, 
-# one contains the training areas/rectangles and other contains the polygon of trees/objects in those training areas
-# The first task is to determine the parent training area for each polygon and generate a weight map based on the distance of a polygon boundary to other objects.
-# Weight map will be used by the weighted loss during the U-Net training
 
 
-def draw_polygons(polygons: List[List[Tuple[float, float]]], shape: Tuple[int, int], outline: int = 0, fill: int = 1) -> np.ndarray:
+def polygon_to_pixel(area_df, area_shape, profile, filename, outline=0, fill=1, kernel_size=15, kernel_sigma=5, gaussian=False):
     """
-    Creates a numpy mask from polygons with specified outline and fill values.
+    Convert polygon coordinates to pixel coordinates, create annotation and mask images,
+    and optionally generate Gaussian kernels.
+    """
+    polygons_in_pixels = []
+    annotations = []
+    transform = profile['transform']
+
+    for idx, row in area_df.iterrows():
+        geom = row['geometry']
+
+        if geom.geom_type == "Polygon":
+            polygons = [geom]
+        elif geom.geom_type == "MultiPolygon":
+            warn(f"Training data {idx} is a MultiPolygon. Please Check")
+            polygons = list(geom.geoms)
+        else:
+            raise ValueError(f"Unsupported geometry type: {geom.geom_type}")
+
+        for polygon in polygons:
+            # Convert centroid to pixel coordinates
+            centroid_x, centroid_y = polygon.centroid.x, polygon.centroid.y
+            centroid_row, centroid_col = rowcol(transform, centroid_x, centroid_y)
+            # Convert exterior coordinates to pixel coordinates
+            exterior_coords = np.array(polygon.exterior.coords)
+            if exterior_coords.shape[1] == 3:  # Handle 3D coordinates
+                exterior_coords = exterior_coords[:, :2]
+            
+            row_coords, col_coords = rowcol(transform, exterior_coords[:, 0], exterior_coords[:, 1])
+            row_coords = [int(r) for r in row_coords]
+            col_coords = [int(c) for c in col_coords]
+            polygons_in_pixels.append([centroid_row, centroid_col])
+            annotations.append(list(zip(row_coords, col_coords)))
+     
+    with open(filename, 'w') as outfile:  
+        json.dump({'Trees': annotations}, outfile)
+    
+    # create mask from polygons
+    mask = np.zeros(area_shape, dtype=np.uint8)
+    pil_mask = Image.fromarray(mask)
+    draw = ImageDraw.Draw(pil_mask)
+    for annotation in annotations:
+        xy = [(coord[1], coord[0]) for coord in annotation]  # Convert (x, y) to (row, col)
+        draw.polygon(xy, outline=outline, fill=fill)    
+
+    mask = np.array(pil_mask)
+    
+    # Write mask to a PNG file
+    profile['dtype'] = rasterio.int16
+    mask_filepath = filename.replace('.json', '.png')
+    with rasterio.open(mask_filepath, 'w', **profile) as dst:
+        dst.write(mask.astype(rasterio.int16), 1)
+    
+    if gaussian: # Generate Gaussian kernel density map
+        density_map = generate_gaussian_density_map(area_shape, polygons_in_pixels, kernel_size, kernel_sigma)
+        profile['dtype'] = rasterio.float32
+        kernel_filepath = filename.replace('.json', '_kernel.png')
+        with rasterio.open(kernel_filepath, 'w', **profile) as dst:
+            dst.write(density_map.astype(rasterio.float32), 1)
+
+
+def create_polygon_mask(polygons: List[List[Tuple[float, float]]], shape: Tuple[int, int], outline: int = 0, fill: int = 1) -> np.ndarray:
+    """
+    Creates a NumPy mask from polygons with specified outline and fill values.
+    
+    Args:
+        polygons (List[List[Tuple[float, float]]]): List of polygons where each polygon is a list of (x, y) coordinates.
+        shape (Tuple[int, int]): Shape of the mask (height, width).
+        outline (int): Value to assign to the outline (edge) of the polygon.
+        fill (int): Value to assign to the interior (fill) of the polygon.
+
+    Returns:
+        np.ndarray: A NumPy array mask with the same dimensions as the specified shape.
     """
     mask = np.zeros(shape, dtype=np.uint8)
     pil_mask = Image.fromarray(mask)
     draw = ImageDraw.Draw(pil_mask)
 
     for polygon in polygons:
-        draw.polygon(polygon, outline=outline, fill=fill)
+        xy = [(point[1], point[0]) for point in polygon]  # Convert!?
+        draw.polygon(xy, outline=outline, fill=fill)
     return np.array(pil_mask)
 
 
@@ -344,62 +425,6 @@ def extractAreasThatOverlapWithTrainingData_svls(inputImages, areasWithPolygons,
     return writeCounter
 
 
-def polygon_to_pixel(area_df, area_shape, profile, filename, outline=0, fill=1, kernel_size=15, kernel_sigma=5, gaussian=False):
-    """
-    Convert polygon coordinates to pixel coordinates, create annotation and mask images,
-    and optionally generate Gaussian kernels.
-    """
-    polygons_in_pixels = []
-    annotations = []
-    transform = profile['transform']
-
-    for idx, row in area_df.iterrows():
-        geom = row['geometry']
-
-        if geom.geom_type == "Polygon":
-            polygons = [geom]
-        elif geom.geom_type == "MultiPolygon":
-            warn(f"Training data {idx} is a MultiPolygon. Please Check")
-            polygons = list(geom.geoms)
-        else:
-            raise ValueError(f"Unsupported geometry type: {geom.geom_type}")
-
-        for polygon in polygons:
-            # Convert centroid to pixel coordinates
-            centroid_x, centroid_y = polygon.centroid.x, polygon.centroid.y
-            centroid_row, centroid_col = rowcol(transform, centroid_x, centroid_y)
-            # Convert exterior coordinates to pixel coordinates
-            exterior_coords = np.array(polygon.exterior.coords)
-            if exterior_coords.shape[1] == 3:  # Handle 3D coordinates
-                exterior_coords = exterior_coords[:, :2]
-            
-            row_coords, col_coords = rowcol(transform, exterior_coords[:, 0], exterior_coords[:, 1])
-            row_coords = [int(r) for r in row_coords]
-            col_coords = [int(c) for c in col_coords]
-            polygons_in_pixels.append([centroid_row, centroid_col])
-            annotations.append(list(zip(row_coords, col_coords)))
-     
-    with open(filename, 'w') as outfile:  
-        json.dump({'Trees': annotations}, outfile)
-    
-    # create mask from polygons
-    mask = draw_polygons(annotations, area_shape, outline=outline, fill=fill)
-    
-    # Write mask to a PNG file
-    profile['dtype'] = rasterio.int16
-    profile['compress'] = 'lzw'
-    mask_filepath = filename.replace('.json', '.png')
-    with rasterio.open(mask_filepath, 'w', **profile) as dst:
-        dst.write(mask.astype(rasterio.int16), 1)
-    
-    if gaussian: # Generate Gaussian kernel density map
-        density_map = generate_gaussian_density_map(area_shape, polygons_in_pixels, kernel_size, kernel_sigma)
-        profile['dtype'] = rasterio.float32
-        kernel_filepath = filename.replace('.json', '_kernel.png')
-        with rasterio.open(kernel_filepath, 'w', **profile) as dst:
-            dst.write(density_map.astype(rasterio.float32), 1)
-         
-
 def rowColPolygons_svls(areaDf, areaShape, profile, filename, outline, fill, kernel_size, kernel_sigma, kernel_size_svls, sigma_svls):
     """
     Convert polygons coordinates to image pixel coordinates, create annotation image using drawPolygons() and write the results into an image file.
@@ -422,7 +447,7 @@ def rowColPolygons_svls(areaDf, areaShape, profile, filename, outline, fill, ker
         polygon_anns.append(zipped2)
     with open(filename, 'w') as outfile:  
         json.dump({'Trees': polygon_anns}, outfile)
-    mask = draw_polygons(polygon_anns,areaShape, outline=outline, fill=fill)
+    # mask = draw_polygons(polygon_anns,areaShape, outline=outline, fill=fill)
     # profile['dtype'] = rasterio.int16
     
     # # using eudlican distance mask for label smoothing

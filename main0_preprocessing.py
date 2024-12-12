@@ -7,12 +7,11 @@ Created on Mon Nov  8 14:19:53 2021
 """
 
 
-from config import Preprocessing
+from config_cisong.Preprocessing import Configuration
 from core2.preprocessing import Processor
 
-config = Preprocessing.Configuration()
-
-prep = Processor(config,boundary = True, aux = True)
+config = Configuration()
+prep = Processor(config, boundary = True, aux = True)
 prep.extract_training_sets()
 
 # # no boundary

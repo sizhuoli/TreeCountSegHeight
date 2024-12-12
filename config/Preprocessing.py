@@ -1,8 +1,11 @@
+"""
+Configuration of the parameters for segmentation and counting preprocessing
+"""
 
 import os
+from warnings import warn
 
 
-# Configuration of the parameters for segmentation and counting preprocessing
 class Configuration:
     
     def __init__(self):
@@ -31,18 +34,14 @@ class Configuration:
         # For writing the extracted images and their corresponding annotations and boundary file
         self.path_to_write = './extracted_data_test_raw/'
         self.show_boundaries_during_processing = False
-        self.extracted_file_type = '.png'
+        self.extracted_file_type = 'png'
         self.extracted_filenames = ['red', 'green', 'blue', 'infrared']
         self.extracted_annotation_filename = 'annotation'
         self.extracted_boundary_filename = 'boundary'
         self.kernel_size_svls = 15 
         self.kernel_sigma_svls = 5
 
-        # Path to write should be a valid directory
-        # assert os.path.exists(self.path_to_write)
         if not os.path.exists(self.path_to_write):
             os.makedirs(self.path_to_write)
-
-        if not len(os.listdir(self.path_to_write)) == 0:
-            print('Warning: path_to_write is not empty! The old files in the directory may not be overwritten!!')
-
+        elif len(os.listdir(self.path_to_write)) > 0:
+            warn(f'Warning: path_to_write {self.path_to_write} is not empty! The old files in the directory may not be overwritten!!')
