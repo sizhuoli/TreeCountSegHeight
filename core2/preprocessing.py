@@ -58,7 +58,8 @@ class Processor:
         write_counter = 0
         training_areas_in_imagery = set()
 
-        if self.config.aux_channel_prefixes and not self.config.single_raster:
+        # Extract raster areas that overlap with traning area.
+        if self.aux and not self.config.single_raster:
             logging.info("Processing multi-raster images with auxiliary data...")
             for imgs in tqdm(self.input_images):
                 main_image = rasterio.open(imgs[0]) # What is a main image?
@@ -84,6 +85,7 @@ class Processor:
 
                 training_areas_in_imagery.update(img_overlap_areas)
 
+        # Check if all training areas have corresponding imageries
         all_training_areas = set(self.training_sets.keys())
         training_areas_without_imagery = all_training_areas.difference(training_areas_in_imagery)
         if training_areas_without_imagery:
@@ -178,6 +180,10 @@ class Processor:
         return write_counter, img_overlap_areas
 
     def _write_extrated_image_and_annotation(self, overlap, profile, polygons_in_area, boundaries_df, write_counter):
+        """
+        Clip the imagery of the training area into separate image files.
+        Call polygon_to_pixel() to genearte annotation and boundary image from training polygons.
+        """
         for band, band_name in zip(self.config.bands, self.config.extracted_filenames):
             data = overlap[band].astype(profile['dtype'])
             data = image_normalize(data, axis=None) if self.config.normalize else data
@@ -196,22 +202,6 @@ class Processor:
 
         return write_counter + 1
 
-
-    def extract_normal(self, boundary: bool = False, aux: bool = False):
-        write_counter = 0
-        if not boundary:
-            self.config.extracted_boundary_filename = None
-        if not aux:
-            self.config.aux_channel_prefixs = None
-            self.config.aux_bands = None
-        
-        write_counter = extractAreasThatOverlapWithTrainingData(self.inputImages, self.areasWithPolygons, 
-                                                                self.config.path_to_write, self.config.extracted_filenames, 
-                                                                self.config.extracted_annotation_filename, self.config.extracted_boundary_filename, 
-                                                                self.config.bands, write_counter,
-                                                                self.config.single_raster, self.config.normalize, 
-                                                                self.config.aux_channel_prefixs, self.config.aux_bands)
-     
     def extract_svls(self, boundary = 0, aux = 0):
         if not boundary:
             # no boundar weights
@@ -237,68 +227,6 @@ def draw_polygons(polygons: List[List[Tuple[float, float]]], shape: Tuple[int, i
     for polygon in polygons:
         draw.polygon(polygon, outline=outline, fill=fill)
     return np.array(pil_mask)
-
-
-def writeExtractedImageAndAnnotation(img, sm, profile, polygonsInAreaDf, boundariesInAreaDf, writePath, imagesFilename, annotationFilename, boundaryFilename, bands, writeCounter, normalize, kernel_size, kernel_sigma, chm, detchm = 0):
-    """
-    Write the part of raw image that overlaps with a training area into a separate image file. 
-    Use rowColPolygons to create and write annotation and boundary image from polygons in the training area.
-    """
-    try:
-        
-        for band, imFn in zip(bands, imagesFilename):
-            # Rasterio reads file channel first, so the sm[0] has the shape [1 or ch_count, x,y]
-            # If raster has multiple channels, then bands will be [0, 1, ...] otherwise simply [0]
-            dt = sm[0][band].astype(profile['dtype'])
-            
-            if chm:
-                if detchm: # using det chm
-                    print('processing det chm here')
-                    print('before min, max, mean, std', dt.min(), dt.max(), dt.mean(), dt.std())
-                    dt = dt/100
-                    dt[dt<1] = 0
-                    print('rescale min, max, mean, std', dt.min(), dt.max(), dt.mean(), dt.std())
-                elif not detchm:
-                    print('processing reference chm here')
-                    dt = dt
-                if normalize:
-                    # print('robust scaling for CHM')
-                    # q1 = np.quantile(dt, 0.25)
-                    # q3 = np.quantile(dt, 0.75)
-                    # dt = (dt-q1)/(q3-q1)
-                    print('normalize chm')
-                    dt = image_normalize(dt, axis=None)
-            else:
-                if normalize: # Note: If the raster contains None values, then you should normalize it separately by calculating the mean and std without those values.
-                    dt = image_normalize(dt, axis=None) # to normalize with means and std computed channel wise #  Normalize the image along the width and height, and since here we only have one channel we pass axis as None
-
-            profile.update(compress='lzw')
-            with rasterio.open(os.path.join(writePath, imFn+'_{}.png'.format(writeCounter)), 'w', **profile) as dst:
-                # ipdb.set_trace()
-
-                # np.save(os.path.join(writePath, imFn+'_{}.numpy'.format(writeCounter)))
-                dst.write(dt, 1)
-                    
-        countFilename = os.path.join(writePath, 'count'+'_{}.npy'.format(writeCounter))
-        curcount = len(polygonsInAreaDf)
-        np.save(countFilename, curcount)
-        
-        if annotationFilename:
-            #ipdb.set_trace()
-            # print('saving ann')
-            annotation_json_filepath = os.path.join(writePath,annotationFilename+'_{}.json'.format(writeCounter))
-            # The object is given a value of 1, the outline or the border of the object is given a value of 0 and rest of the image/background is given a a value of 0
-            polygon_to_pixel(polygonsInAreaDf,(sm[0].shape[1], sm[0].shape[2]), profile, annotation_json_filepath, outline=0, fill = 1, kernel_size =kernel_size, kernel_sigma = kernel_sigma, gaussian = 1)
-        if boundaryFilename:
-            boundary_json_filepath = os.path.join(writePath,boundaryFilename+'_{}.json'.format(writeCounter))
-            # The boundaries are given a value of 1, the outline or the border of the boundaries is also given a value of 1 and rest is given a value of 0
-            polygon_to_pixel(boundariesInAreaDf,(sm[0].shape[1], sm[0].shape[2]), profile, boundary_json_filepath, outline=1 , fill=1, kernel_size =kernel_size, kernel_sigma = kernel_sigma, gaussian = 0)
-        return writeCounter + 1
-    except Exception as e:
-        print(e)
-        print("Something nasty happened, could not write the annotation or the mask file!")
-        ipdb.set_trace()
-        return writeCounter
 
 
 def writeExtractedImageAndAnnotation_svls(img, sm, profile, polygonsInAreaDf, boundariesInAreaDf, writePath, imagesFilename, annotationFilename, boundaryFilename, bands, writeCounter, kernel_size, kernel_sigma, kernel_size_svls, sigma_svls, normalize=True):
@@ -370,44 +298,6 @@ def findOverlap_svls(img, areasWithPolygons, writePath, imageFilename, annotatio
     return(writeCounter, overlapppedAreas)
 
 
-def findOverlap(img, areasWithPolygons, writePath, imageFilename, annotationFilename, boundaryFilename, bands, normalize, kernel_size, kernel_sigma, writeCounter=1, chm = 0, detchm = 0):
-    """
-    Finds overlap of image with a training area.
-    Use writeExtractedImageAndAnnotation() to write the overlapping training area and corresponding polygons in separate image files.
-    """
-    overlapppedAreas = set()
-    
-    for areaID, areaInfo in areasWithPolygons.items():
-        #Convert the polygons in the area in a dataframe and get the bounds of the area. 
-        polygonsInAreaDf = gpd.GeoDataFrame(areaInfo['polygons'])
-        if 'boundary_weight' in areaInfo:
-            boundariesInAreaDf = gpd.GeoDataFrame(areaInfo['boundary_weight'])
-        else:
-            boundariesInAreaDf = None
-        bboxArea = box(*areaInfo['bounds'])
-        bboxImg = box(*img.bounds)
-        
-        #Extract the window if area is in the image
-        if(bboxArea.intersects(bboxImg)):
-            profile = img.profile  
-            sm = rasterio.mask.mask(img, [bboxArea], all_touched=True, crop=True )
-            # print(profile.keys())
-            profile['height'] = sm[0].shape[1]
-            profile['width'] = sm[0].shape[2]
-            profile['transform'] = sm[1]
-            # That's a problem with rasterio, if the height and the width are less then 256 it throws: ValueError: blockysize exceeds raster height 
-            # So I set the blockxsize and blockysize to prevent this problem
-            profile['blockxsize'] = 32
-            profile['blockysize'] = 32
-            profile['count'] = 1
-            profile['dtype'] = rasterio.float32
-            print('Do local normalizaton')
-            # writeExtractedImageAndAnnotation writes the image, annotation and boundaries and returns the counter of the next file to write. 
-            writeCounter = writeExtractedImageAndAnnotation(img, sm, profile, polygonsInAreaDf, boundariesInAreaDf, writePath, imageFilename, annotationFilename, boundaryFilename, bands, writeCounter, normalize, kernel_size, kernel_sigma, chm, detchm)
-            overlapppedAreas.add(areaID)
-    return(writeCounter, overlapppedAreas)
-
-
 def extractAreasThatOverlapWithTrainingData_svls(inputImages, areasWithPolygons, writePath, channelNames,  annotationFilename, boundaryFilename, bands, writeCounter, auxChannelNames = None, auxBands = None, singleRaster = 1, kernel_size = 15, kernel_sigma = 4, kernel_size_svls = 3, sigma_svls = 1):
     """
     Iterates over raw ndvi and pan images and using findOverlap() extract areas that overlap with training data. The overlapping areas in raw images are written in a separate file, and annotation and boundary file are created from polygons in the overlapping areas.
@@ -451,65 +341,6 @@ def extractAreasThatOverlapWithTrainingData_svls(inputImages, areasWithPolygons,
     allAreas = set(areasWithPolygons.keys())
     if allAreas.difference(overlapppedAreas):
         print(f'Warning: Could not find a raw image correspoinding to {allAreas.difference(overlapppedAreas)} areas. Make sure that you have provided the correct paths!')
-    return writeCounter
-
-
-def extractAreasThatOverlapWithTrainingData(input_images, areasWithPolygons, writePath, channelNames,  annotationFilename, boundaryFilename, bands, writeCounter, normalize, auxChannelNames = None, auxBands = None, singleRaster = 1, kernel_size = 15, kernel_sigma = 4, detchm = 0):
-    """
-    Iterates over raw ndvi and pan images and using findOverlap() extract areas that overlap with training data. 
-    The overlapping areas in raw images are written in a separate file, 
-    and annotation and boundary file are created from polygons in the overlapping areas.
-    Note that the intersection with the training areas is performed independently for raw ndvi and pan images. 
-    This is not an ideal solution and it can be combined in the future.
-    """
-    
-    overlapppedAreas = set()  
-    
-    # auxChannelNames = 1
-    
-    # singleRaster = 0
-    if auxChannelNames and not singleRaster:
-        # raw tif with aux info
-        print('Multi raster with aux data')             
-        for imgs in tqdm(input_images):
-            # main image at imgs[0]
-            Img = rasterio.open(imgs[0])
-            ncimg,imOverlapppedAreasImg = findOverlap(Img, areasWithPolygons, writePath=writePath, imageFilename=channelNames, annotationFilename=annotationFilename, boundaryFilename=boundaryFilename, bands=bands, kernel_size = kernel_size, kernel_sigma = kernel_sigma, normalize = normalize, writeCounter=writeCounter)
-
-            for aux in range(len(auxChannelNames)):
-                auxImgi = rasterio.open(imgs[aux+1])
-                if aux == 0: # 
-                    print('Processing CHM ')
-                    if detchm:
-                        ncauxi, imOverlapppedAreasAuxi = findOverlap(auxImgi, areasWithPolygons, writePath=writePath, imageFilename=auxChannelNames[aux], annotationFilename='', boundaryFilename='', bands=auxBands[aux], kernel_size = kernel_size, kernel_sigma = kernel_sigma, normalize = normalize, writeCounter=writeCounter, chm = 1, detchm = detchm )
-                    else:
-                        ncauxi, imOverlapppedAreasAuxi = findOverlap(auxImgi, areasWithPolygons, writePath=writePath, imageFilename=auxChannelNames[aux], annotationFilename='', boundaryFilename='', bands=auxBands[aux], kernel_size = kernel_size, kernel_sigma = kernel_sigma, normalize = normalize, writeCounter=writeCounter, chm = 1 )
-                else:
-                    ncauxi, imOverlapppedAreasAuxi = findOverlap(auxImgi, areasWithPolygons, writePath=writePath, imageFilename=auxChannelNames[aux], annotationFilename='', boundaryFilename='', bands=auxBands[aux], kernel_size = kernel_size, kernel_sigma = kernel_sigma, normalize = normalize, writeCounter=writeCounter )
-                
-            if ncimg == ncauxi:
-                writeCounter = ncimg
-            else: 
-                print('Couldnt create mask!!!')
-                print(ncimg)
-                print(ncauxi)
-                break;
-            if overlapppedAreas.intersection(imOverlapppedAreasImg):
-                print(f'Information: Training area(s) {overlapppedAreas.intersection(imOverlapppedAreasImg)} spans over multiple raw images. This is common and expected in many cases. A part was found to overlap with current input image.')
-            overlapppedAreas.update(imOverlapppedAreasImg)
-    
-    else:
-        print('————————————————————————Single raster or multi raster without aux')
-        for imgs in tqdm(input_images):
-        
-            rasterImg = rasterio.open(imgs)
-            writeCounter, imOverlapppedAreas = findOverlap(rasterImg, areasWithPolygons, writePath=writePath, imageFilename=channelNames, annotationFilename=annotationFilename, boundaryFilename=boundaryFilename, bands=bands, kernel_size = kernel_size, kernel_sigma = kernel_sigma, normalize = normalize, writeCounter=writeCounter )
-            
-            overlapppedAreas.update(imOverlapppedAreas)
-    allAreas = set(areasWithPolygons.keys())
-    if allAreas.difference(overlapppedAreas):
-        print(f'Warning: Could not find a raw image correspoinding to {allAreas.difference(overlapppedAreas)} areas. Make sure that you have provided the correct paths!')
-
     return writeCounter
 
 
