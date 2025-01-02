@@ -17,23 +17,20 @@ def tversky(y_true, y_pred, alpha=0.6, beta=0.4):
     :return: the loss
     """
     
-    y_t = y_true[...,0]
-    y_t = y_t[...,np.newaxis]
-    # weights
-    y_weights = y_true[...,1]
-    y_weights = y_weights[...,np.newaxis]
+    y_t = tf.cast(y_true[..., 0:1], tf.float32)
+    y_weights = tf.cast(y_true[..., 1:2], tf.float32) 
     
-    ones = 1 
-    p0 = y_pred  # proba that voxels are class i
-    p1 = ones - y_pred  # proba that voxels are not class i
+    p0 = tf.cast(y_pred, tf.float32)
+    p1 = 1.0 - p0
     g0 = y_t
-    g1 = ones - y_t
+    g1 = 1.0 - g0
 
     tp = tf.reduce_sum(y_weights * p0 * g0)
     fp = alpha * tf.reduce_sum(y_weights * p0 * g1)
     fn = beta * tf.reduce_sum(y_weights * p1 * g0)
 
-    EPSILON = 0.00001
+    # Adding a small epsilon to avoid division by zero
+    EPSILON = 1e-7
     numerator = tp
     denominator = tp + fp + fn + EPSILON
     score = numerator / denominator
