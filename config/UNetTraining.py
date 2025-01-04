@@ -8,10 +8,10 @@ from functools import reduce
 class Configuration:
     def __init__(self):
         self.ntasks = 2
-        self.multires = 0 # see multi-resolution input in config/UNetTraining_multires
+        self.multires = False # see multi-resolution input in config/UNetTraining_multires
         self.base_dir = '/home/sizhuo/Desktop/code_repository/tree_crown_mapping_cleaned-main/example_extracted_data/' # extracted image and label patches
         self.image_type = '.png'
-        self.grayscale = 0 # convert to grayscale (need to set channel_names = ['red', 'green', 'blue'] for conversion)
+        self.grayscale = False # convert to grayscale (need to set channel_names = ['red', 'green', 'blue'] for conversion)
          # which channels to use: a list of channel names which correspond to the naming in the base_dir
         self.channel_names = ['red', 'green', 'blue']
         self.annotation_fn = 'annotation' # segmentation mask
@@ -19,7 +19,7 @@ class Configuration:
         self.density_fn = 'ann_kernel' # gussian kernel mask
         self.boundary_weights = 3
         self.single_raster = False # set to 1 if only one channel
-        self.aux_data = 0 # only no additional input of different resolution
+        self.aux_data = False # only no additional input of different resolution
         self.patch_generation_stratergy = 'random'
         if self.grayscale:
             self.image_channels = 1
@@ -39,7 +39,7 @@ class Configuration:
         self.input_weight_channel = [self.image_channels+1]
         self.input_density_channel = [self.image_channels+2]
 
-        self.inputBN = 1 # input batch norm: set to True if input data is not normalized
+        self.inputBN = True # input batch norm: set to True if input data is not normalized
         self.task_ratio = [100, 1000, 10000] # list of 3 indicating the loss weighting ratio for density branch at epochs 1, 100, 500
 
         self.BATCH_SIZE = 16

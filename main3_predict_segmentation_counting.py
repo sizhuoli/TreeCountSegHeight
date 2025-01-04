@@ -10,7 +10,7 @@ Created on Mon Jun 19 22:41:28 2023
 import os
 import numpy as np
 from sklearn.metrics import mean_absolute_error
-from config_cisong import Model_compare_multires
+from config import Model_compare_multires
 from core2.model_compare import Eva_segcount
 
 os.environ["CUDA_VISIBLE_DEVICES"] = '0'

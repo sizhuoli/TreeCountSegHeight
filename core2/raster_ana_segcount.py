@@ -2,88 +2,36 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Oct 19 01:33:25 2021
-
 @author: sizhuo
 """
 
 import os
+from itertools import product
+import warnings
+import logging
 
-# import keras.saving.save
-
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
+import numpy as np
+import geopandas as gps
 import rasterio                  # I/O raster data (netcdf, height, geotiff, ...)
 import rasterio.warp             # Reproject raster samples
-from rasterio import merge
 from rasterio import windows
-# import fiona                     # I/O vector data (shape, geojson, ...)
-import geopandas as gps
-import glob
-from shapely.geometry import Point, Polygon
-from shapely.geometry import mapping, shape
-from skimage.transform import resize
-
-import numpy as np               # numerical array manipulation
-import os
-from tqdm import tqdm
-import PIL.Image
-import PIL.ImageDraw
-import time
-
-from itertools import product
-import cv2
-from sklearn.metrics import mean_absolute_error, median_absolute_error
-
-import sys
-import math
-# from core.UNet_multires import UNet
-
-# from rasterstats import zonal_stats
-import matplotlib.pyplot as plt  # plotting tools
-import matplotlib.patches as patches
-from matplotlib.patches import Polygon
-
-import warnings                  # ignore annoying warnings
-warnings.filterwarnings("ignore")
-import logging
-logger = logging.getLogger()
-logger.setLevel(logging.CRITICAL)
-
-# %reload_ext autoreload
-# %autoreload 2
-from IPython.core.interactiveshell import InteractiveShell
-InteractiveShell.ast_node_interactivity = "all"
-
-from collections import defaultdict
-import random
 from rasterio.enums import Resampling
-# from osgeo import ogr, gdal
-
-from scipy.optimize import curve_fit
-from matplotlib import colors
-import glob
-from matplotlib.gridspec import GridSpec
-from scipy.stats import linregress
-import csv
-from shapely.geometry import shape
-from rasterio.windows import Window
-from rasterio.features import shapes
-# import multiprocessing
+from skimage.transform import resize
+from tqdm import tqdm
 from itertools import product
 import tensorflow as tf
-from pathlib import Path
-import ipdb
+from tensorflow.keras.models import load_model
+import tensorflow.keras.backend as K
+
 from core2.losses import tversky, accuracy, dice_coef, dice_loss, specificity, sensitivity, miou, weight_miou
 from core2.UNet_attention_segcount import UNet
 from core2.optimizers import adaDelta, adagrad, adam, nadam
 from core2.frame_info import image_normalize
-# from tensorflow import keras
-from tensorflow.keras.models import load_model
-import tensorflow.keras.backend as K
 
-print(tf.__version__)
-print(tf.config.list_physical_devices('GPU'))
-# ipdb.set_trace()
-class anaer:
+logger = logging.getLogger()
+logger.setLevel(logging.CRITICAL)
+
+class Anaer:
     def __init__(self, config):
         self.config = config
         self.all_files = load_files(self.config)
@@ -180,7 +128,6 @@ class anaer:
         return
 
 
-
 def load_files(config):
     exclude = set(['water_new', 'md5', 'pred', 'test_kay'])
     all_files = []
@@ -199,8 +146,6 @@ def load_files(config):
     # print('Number of missing tif to predict:', len(all_files))
 
     return all_files
-
-
 
 
 def addTOResult(res, prediction, row, col, he, wi, operator = 'MAX'):
@@ -226,6 +171,7 @@ def addTOResult(res, prediction, row, col, he, wi, operator = 'MAX'):
 # However, in case the values are strecthed before hand this problem will be minimized
     res[row:row+he, col:col+wi] =  resultant
     return (res)
+
 
 def addTOResult_chm(res, prediction, row, col, he, wi, operator = 'MAX'):
     currValue = res[row:row+he, col:col+wi]
@@ -313,9 +259,6 @@ def predict_using_model_segcount_fi(model, batch, batch_pos, maskseg, maskdens, 
         maskseg = addTOResult(maskseg, p, row, col, he, wi, operator)
         maskdens = addTOResult(maskdens, c, row, col, he, wi, operator)
     return maskseg, maskdens
-
-
-
 
 
 def predict_using_model_chm_fi(model, batch, batch_pos, mask, operator, upsample = 1, downsave = 1, upscale = 2, rescale_values = 1):
@@ -738,9 +681,6 @@ def predict_ready_run(config, all_files, model_segcount, model_chm, output_dir, 
     return counter
 
 
-
-
-
 def writeMaskToDisk(detected_mask, detected_meta, wp, image_type, output_shapefile_type, write_as_type = 'uint8', th = 0.5, create_countors = False, convert = 1, rescale = 0):
     # Convert to correct required before writing
     meta = detected_meta.copy()
@@ -774,7 +714,6 @@ def writeMaskToDisk(detected_mask, detected_meta, wp, image_type, output_shapefi
                                 'nodata': 255
                             }
                         )
-        ##################################################################################################
         ##################################################################################################
     with rasterio.open(wp, 'w', **meta) as outds:
         outds.write(detected_mask, 1)
