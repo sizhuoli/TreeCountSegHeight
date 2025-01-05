@@ -21,7 +21,7 @@ from tqdm import tqdm
 from itertools import product
 import tensorflow as tf
 from tensorflow.keras.models import load_model
-import tensorflow.keras.backend as K
+from tensorflow.keras import backend as K
 
 from core2.losses import tversky, accuracy, dice_coef, dice_loss, specificity, sensitivity, miou, weight_miou
 from core2.UNet_attention_segcount import UNet

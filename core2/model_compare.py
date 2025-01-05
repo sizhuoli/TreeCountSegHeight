@@ -22,11 +22,12 @@ import cv2
 import matplotlib.pyplot as plt  
 import scipy
 
-from core2.losses import tversky, accuracy, dice_coef, dice_loss, specificity, sensitivity, miou, weight_miou
-from core2.eva_losses import eva_acc, eva_dice, eva_sensitivity, eva_specificity, eva_miou 
-from core2.optimizers import adaDelta, adagrad, adam, nadam
-from core2.frame_info_multires_segcount import FrameInfo, image_normalize
-from core2.visualize import display_images
+from core.losses import tversky, accuracy, dice_coef, dice_loss, specificity, sensitivity, miou, weight_miou
+from core.eva_losses import eva_acc, eva_dice, eva_sensitivity, eva_specificity, eva_miou 
+from core.optimizers import adaDelta, adagrad, adam, nadam
+from core.frame_info_multires_segcount import FrameInfo, image_normalize
+from core.visualize import display_images
+from core import UNet_attention_segcount
 
 logging.getLogger().setLevel(logging.CRITICAL)
 logging.info(tf.__version__)
@@ -55,6 +56,7 @@ class Eva_segcount:
                     'specificity': specificity,
                     'sensitivity': sensitivity,
                     'K': K,
+                    'UNet_attention_segcount': UNet_attention_segcount,
                 },
                 compile = False,
                 safe_mode = False

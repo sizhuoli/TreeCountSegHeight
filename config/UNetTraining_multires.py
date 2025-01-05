@@ -1,8 +1,7 @@
 # multi tasks (segmentation +  count)
-import os
+
 from functools import reduce
 
-import os
 
 class Configuration:
     def __init__(self):

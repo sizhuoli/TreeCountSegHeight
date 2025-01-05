@@ -1,7 +1,6 @@
 #    Edited by Sizhuo Li
 #    Author: Ankit Kariryaa, University of Bremen
 
-
 import tensorflow.keras.backend as K
 import numpy as np
 import tensorflow as tf
@@ -36,11 +35,13 @@ def tversky(y_true, y_pred, alpha=0.6, beta=0.4):
     score = numerator / denominator
     return 1.0 - tf.reduce_mean(score)
 
+
 def accuracy(y_true, y_pred):
     """compute accuracy"""
     y_t = y_true[...,0]
     y_t = y_t[...,np.newaxis]
     return K.equal(K.round(y_t), K.round(y_pred))
+
 
 def dice_coef(y_true, y_pred, smooth=0.0000001):
     """compute dice coef"""
@@ -58,11 +59,13 @@ def dice_coef(y_true, y_pred, smooth=0.0000001):
     union = K.sum(y_t) + K.sum(y_pred)
     return (2. * intersection + smooth) / (union + smooth)
 
+
 def dice_loss(y_true, y_pred):
     """compute dice loss"""
     # y_t = y_true[...,0]
     # y_t = y_t[...,np.newaxis]
     return 1 - dice_coef(y_true, y_pred)
+
 
 def true_positives(y_true, y_pred):
     """compute true positive"""
@@ -70,11 +73,13 @@ def true_positives(y_true, y_pred):
     y_t = y_t[...,np.newaxis]
     return K.round(y_t * y_pred)
 
+
 def false_positives(y_true, y_pred):
     """compute false positive"""
     y_t = y_true[...,0]
     y_t = y_t[...,np.newaxis]
     return K.round((1 - y_t) * y_pred)
+
 
 def true_negatives(y_true, y_pred):
     """compute true negative"""
@@ -82,11 +87,13 @@ def true_negatives(y_true, y_pred):
     y_t = y_t[...,np.newaxis]
     return K.round((1 - y_t) * (1 - y_pred))
 
+
 def false_negatives(y_true, y_pred):
     """compute false negative"""
     y_t = y_true[...,0]
     y_t = y_t[...,np.newaxis]
     return K.round((y_t) * (1 - y_pred))
+
 
 def sensitivity(y_true, y_pred):
     """compute sensitivity (recall)"""
@@ -96,6 +103,7 @@ def sensitivity(y_true, y_pred):
     fn = false_negatives(y_t, y_pred)
     return K.sum(tp) / (K.sum(tp) + K.sum(fn))
 
+
 def specificity(y_true, y_pred):
     """compute specificity (precision)"""
     y_t = y_true[...,0]
@@ -103,6 +111,7 @@ def specificity(y_true, y_pred):
     tn = true_negatives(y_t, y_pred)
     fp = false_positives(y_t, y_pred)
     return K.sum(tn) / (K.sum(tn) + K.sum(fp))
+
 
 def miou(y_true, y_pred):
     y_t = y_true[...,0]

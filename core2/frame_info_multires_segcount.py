@@ -3,6 +3,7 @@
 
 import numpy as np
 
+
 def image_normalize(im, axis = (0,1), c = 1e-8):
     '''
     Normalize to zero mean and unit standard deviation along the given axis'''

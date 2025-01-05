@@ -6,11 +6,9 @@ Created on Tue Jan 26 00:34:33 2021
 @author: sizhuo
 """
 
-
 from tensorflow.keras import models, layers
 from tensorflow.keras import regularizers
-
-import tensorflow.keras.backend as K
+from tensorflow.keras import backend as K
 
 
 def UNet(input_shape,input_label_channel, layer_count=64, regularizers = regularizers.l2(0.0001), gaussian_noise=0.1, weight_file = None, inputBN = 0):

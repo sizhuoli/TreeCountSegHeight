@@ -14,7 +14,6 @@ class Configuration:
         self.training_area_fn = 'rectangles.shp' # annotating areas where tree crowns are delineated inclusively
         self.training_polygon_fn = 'polygons.shp' # tree crowns
 
-
         # For reading multichannel images
         self.raw_image_base_dir = ''  # dir containing optical images (color bands)
         self.raw_image_file_type = '.tif' # image format

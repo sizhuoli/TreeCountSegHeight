@@ -1,8 +1,8 @@
 #    Author: Ankit Kariryaa, University of Bremen
 
-import imgaug as ia
 from imgaug import augmenters as iaa
 import numpy as np
+
 
 def imageAugmentationWithIAA():
     sometimes = lambda aug, prob=0.5: iaa.Sometimes(prob, aug)

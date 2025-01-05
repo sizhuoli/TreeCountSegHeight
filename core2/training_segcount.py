@@ -15,7 +15,7 @@ import rasterio.warp
 from skimage.transform import resize
 import tensorflow as tf
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, EarlyStopping, ReduceLROnPlateau, TensorBoard, Callback
-import tensorflow.keras.backend as K
+from tensorflow.keras import backend as K
 from tensorflow import Variable, summary
 
 from core2.losses import tversky, accuracy, dice_coef, dice_loss, specificity, sensitivity, miou, weight_miou

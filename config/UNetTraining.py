@@ -1,8 +1,5 @@
-
-
-
 # multi tasks (segmentation +  count)
-import os
+
 from functools import reduce
 
 class Configuration:

@@ -1,17 +1,19 @@
-import tensorflow as tf
-import numpy as np
-from PIL import Image
-import rasterio
-import imgaug as ia
-from imgaug import augmenters as iaa
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-
-import imageio
 import os
 import time
+import warnings
+import logging
+
+import scipy
+
+import numpy as np
+import rasterio
 import rasterio.warp  # Reproject raster samples
-from functools import reduce
+from skimage.transform import resize
+
+import tensorflow as tf
 from tensorflow.keras.models import load_model
+from tensorflow.keras import backend as K
+from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, EarlyStopping, ReduceLROnPlateau, TensorBoard
 
 from core2.UNet_attention_segcount import UNet
 from core2.losses import tversky, accuracy, dice_coef, dice_loss, specificity, sensitivity, miou, weight_miou
@@ -19,45 +21,13 @@ from core2.optimizers import adaDelta, adagrad, adam, nadam
 from core2.frame_info_segcount import FrameInfo
 from core2.dataset_generator_segcount import DataGenerator
 
-from core2.split_frames import split_dataset
-from core2.visualize import display_images
-
-import json
-from sklearn.model_selection import train_test_split
-from skimage.transform import resize
-
-# %matplotlib inline
-import matplotlib.pyplot as plt  # plotting tools
-import matplotlib.patches as patches
-from matplotlib.patches import Polygon
-
-import warnings  # ignore annoying warnings
-
 warnings.filterwarnings("ignore")
-import logging
-
 logger = logging.getLogger()
 logger.setLevel(logging.CRITICAL)
-
-# %reload_ext autoreload
-# %autoreload 2
-from IPython.core.interactiveshell import InteractiveShell
-
-InteractiveShell.ast_node_interactivity = "all"
-import tensorflow.keras.backend as K
-from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, EarlyStopping, ReduceLROnPlateau, \
-    TensorBoard
-import scipy
-
 tf.config.run_functions_eagerly(True)
 
 
-print(tf.__version__)
-
-print(tf.config.list_physical_devices('GPU'))
-
-
-class trainer:
+class Trainer:
     def __init__(self, config):
         self.config = config
 
@@ -69,7 +39,6 @@ class trainer:
                         fn.startswith(self.config.extracted_filenames[0]) and fn.endswith(self.config.image_type)]
 
         self.frames = []
-
 
         for oo in range(self.config.oversample_times):
             print('loading local data')
@@ -106,7 +75,6 @@ class trainer:
                                          preserve_range=1)
                         # print(np.min(cur))
                         comb_img = np.append(comb_img, cur, axis=0)
-
 
                 comb_img = np.transpose(comb_img, axes=(1, 2, 0))  # Channel at the end
                 # print('statis', comb_img.min(), comb_img.mean(), comb_img.max())
@@ -145,7 +113,6 @@ class trainer:
         print('local data loaded, total no. frames: ', len(self.frames))
 
     def load_pretraining_data(self):
-
         # read all initial training data
         print('loading initial training data')
         all_files2 = os.listdir(self.config.base_dir2)
@@ -197,7 +164,6 @@ class trainer:
         print('initial data loaded, total no. frames: ', len(self.frames))
 
     def wrap_data(self):
-
         training_frames = validation_frames = list(range(len(self.frames)))
 
         annotation_channels = self.config.input_label_channel + self.config.input_weight_channel + self.config.input_density_channel
@@ -208,28 +174,7 @@ class trainer:
                                       annotation_channels, self.config.boundary_weights, augmenter=None).random_generator(
             self.config.BATCH_SIZE, normalize=self.config.normalize)
 
-
-        #
-        # for _ in range(3):
-        #     train_images, real_label = next(train_generator)
-        #     ann = real_label['output_seg'][..., 0]
-        #     wei = real_label['output_seg'][..., 1]
-        #     print('count', real_label['output_dens'].sum(axis=(1, 2)))
-        #     print('Boundary highlighted weights:', np.unique(wei))
-        #     print(np.unique(wei))
-        #     print(np.unique(ann))
-        #     print(real_label['output_dens'].shape)
-        #     print('max', real_label['output_dens'].max())
-        #     # overlay of annotation with boundary to check the accuracy
-        #     # 8 images in each row are: pan, ndvi, annotation, weight(boundary), overlay of annotation with weight
-        #     overlay = ann + wei
-        #     # overlay = overlay[:,:,:,np.newaxis]
-        #     overlay = overlay[..., np.newaxis]
-        #     display_images(
-        #         np.concatenate((train_images, real_label['output_seg'], overlay, real_label['output_dens']), axis=-1))
-
     def model_ready_train(self):
-
         OPTIMIZER = adam
         LOSS = tversky
 
@@ -279,4 +224,3 @@ class trainer:
                                          )]
 
         return loss_history
-

@@ -10,6 +10,7 @@ from sklearn.metrics import accuracy_score
 import numpy as np
 import tensorflow as tf
 
+
 def eva_acc(y_true, y_label):
     
     return accuracy_score(y_true.flatten(), y_label.flatten())
