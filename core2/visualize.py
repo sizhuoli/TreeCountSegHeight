@@ -1,6 +1,4 @@
 import matplotlib.pyplot as plt  # plotting tools
-from matplotlib.patches import Polygon
-import os
 
 
 def display_images(img, titles=None, cmap=None, norm=None, interpolation=None, savefig = None, savename = None):

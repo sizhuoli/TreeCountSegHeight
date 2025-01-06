@@ -22,12 +22,11 @@ import cv2
 import matplotlib.pyplot as plt  
 import scipy
 
-from core.losses import tversky, accuracy, dice_coef, dice_loss, specificity, sensitivity, miou, weight_miou
-from core.eva_losses import eva_acc, eva_dice, eva_sensitivity, eva_specificity, eva_miou 
-from core.optimizers import adaDelta, adagrad, adam, nadam
-from core.frame_info_multires_segcount import FrameInfo, image_normalize
-from core.visualize import display_images
-from core import UNet_attention_segcount
+from core2.losses import tversky, accuracy, dice_coef, dice_loss, specificity, sensitivity, miou, weight_miou
+from core2.eva_losses import eva_acc, eva_dice, eva_sensitivity, eva_specificity, eva_miou 
+from core2.optimizers import adaDelta, adagrad, adam, nadam
+from core2.frame_info_multires_segcount import FrameInfo, image_normalize
+from core2.visualize import display_images
 
 logging.getLogger().setLevel(logging.CRITICAL)
 logging.info(tf.__version__)
@@ -56,7 +55,6 @@ class Eva_segcount:
                     'specificity': specificity,
                     'sensitivity': sensitivity,
                     'K': K,
-                    'UNet_attention_segcount': UNet_attention_segcount,
                 },
                 compile = False,
                 safe_mode = False
@@ -137,7 +135,6 @@ class Eva_segcount:
             predlist = []
             for i in range(len(self.pred_counts)):
                 print('------------------------------------------')
-                # print('gt', gt_dens[i].sum())
                 curcount_gt = self.gt_dens[i].sum()
                 print('reference count', curcount_gt)
                 print(self.gt_dens[i].size)
@@ -158,7 +155,6 @@ class Eva_segcount:
                 cgt += self.gt_dens[i].sum()
             print('predict count', ttc)
             print('reference count', cgt)
-            
             
             slope, intercept, r_value, p_value, std_err = scipy.stats.linregress(np.array(ttlist), np.array(predlist))
             
@@ -222,11 +218,7 @@ def predict_using_model_segcount(model, batch, batch_pos, maskseg, maskdens, ope
 
 def detect_tree_segcount_save(config, models, img, width=256, height=256, stride = 128, normalize=True, singleRaster = 1, multires = 1):
 
-    if 'chm' in config.channel_names:
-        CHM = 1
-    else:
-        CHM = 0
-        
+    CHM = True if 'chm' in config.channel_names else False
     img0 = img[0] # channel 0
     
     read_img0 = img0.read()
@@ -284,7 +276,7 @@ def detect_tree_segcount_save(config, models, img, width=256, height=256, stride
                                 resampling=Resampling.bilinear, window = window2)
                 
                 temp_im2 = np.transpose(temp_im2, axes=(1,2,0))
-            elif not multires: # upsample CHM or det chm
+            else: # upsample CHM or det chm
                 if not config.detchm: # reference chm, lower resolution
                     patch1 = np.zeros((height, width, len(img))) # except for the last channel
                 
@@ -337,7 +329,7 @@ def detect_tree_segcount_save(config, models, img, width=256, height=256, stride
                         
                         temp_im1 = np.row_stack((temp_im1, sm1))
                     
-        elif not CHM:
+        else:
             patch1 = np.zeros((height, width, len(img)))
             
             for ch in range(1, len(img)): 
@@ -362,15 +354,12 @@ def detect_tree_segcount_save(config, models, img, width=256, height=256, stride
                     print('multires chm, normalize chm layer')
                     temp_im1 = image_normalize(temp_im1, axis=(0,1)) # Normalize the image along the width and height i.e. independently per channel
                     temp_im2 = image_normalize(temp_im2, axis=(0,1))
-                elif not multires:
+                else:
                     print('det chm, norm chm layer')
                     
                     # normalize all bands
-                    temp_im1 = image_normalize(temp_im1, axis=(0,1))
-                    
-                    
-                    
-            elif not CHM:
+                    temp_im1 = image_normalize(temp_im1, axis=(0,1)) 
+            else:
                 temp_im1 = image_normalize(temp_im1, axis=(0,1)) # Normalize the image along the width and height i.e. independently per channel
                                  
         patch1[:window.height, :window.width] = temp_im1
@@ -381,25 +370,21 @@ def detect_tree_segcount_save(config, models, img, width=256, height=256, stride
                 batch.append([patch1, patch2])
             else:
                 batch.append(patch1)
-            
-        elif not CHM:
+        else:
             batch.append(patch1)
         batch_pos.append((window.col_off, window.row_off, window.width, window.height))
         
         if (len(batch) == config.BATCH_SIZE):
-            
             for mi in range(len(models)):
                 curmaskseg = masksegs[mi, :, :]
                 curmaskdens = maskdenss[mi, :, :]
                 
                 curmaskseg, curmaskdens = predict_using_model_segcount(models[mi], batch, batch_pos, curmaskseg, curmaskdens, config.operator)
-                
             batch = []
             batch_pos = []
             
     # To handle the edge of images as the image size may not be divisible by n complete batches and few frames on the edge may be left.
     if batch:
-        
         for mi in range(len(models)):
             curmaskseg = masksegs[mi, :, :]
             curmaskdens = maskdenss[mi, :, :]
@@ -448,13 +433,11 @@ def writeMaskToDisk(detected_mask, detected_meta, wp, image_type, write_as_type 
     meta = detected_meta.copy()
     mask = detected_mask.copy()
     
-    
     if convert:
         print(f'Converting prediction from {detected_meta["dtype"]} to {write_as_type}, using threshold of {th}')
         mask[mask<th]=0
         mask[mask>=th]=1
         
-    
     mask = mask.astype(write_as_type)
     if mask.ndim != 2:
         mask = mask[0]
@@ -494,66 +477,53 @@ def load_truths_segcount(all_files, config):
     return gt_seg, gt_dens
 
 
-def metrics(pred_labels, all_files, gt, model_id = 0, plot = 1, save_scores = 0, savefig = 0, savename = 0):
-    '''Compute metrics for the testing images, one by one
-        Compute average scores
+def metrics(pred_labels: list, all_files: list, gt: list, model_id: int = 0, plot: bool = True, save_scores: bool = False, savefig: bool = False, savename: str = '') -> tuple:
+    '''Compute metrics for testing images, one by one.
+       Compute average scores and optionally save/display results.
     '''
-    
-    acc_list = []
-    loss_list = []
-    dice_list = []
-    sen_list = []
-    spe_list = []
-    iou_list = []
-    
-    for i in range(len(pred_labels)):
-        logit = pred_labels[i]
-        tr = gt[i]
-        ann = tr[:,:,0]
-        tver = tversky(tr, logit[..., np.newaxis]).numpy()
-        
-        loss_list.append(tver)
-        lb = pred_labels[i].astype(np.int16)
-        
-        acc = eva_acc(ann, lb)
-        acc_list.append(acc)
-        dic = eva_dice(ann, logit)
-        dice_list.append(dic)
-        sen = eva_sensitivity(ann, logit)
-        sen_list.append(sen)
-        spe = eva_specificity(ann, logit)
-        spe_list.append(spe)
-        iou = eva_miou(ann, logit)
-        iou_list.append(iou)
-        
-        if plot:
-            
-            im = np.squeeze(rasterio.open(all_files[i][0]).read())
-            
-            
-            
-            if model_id:
-                if savefig and savename:
-                    display_images(np.stack((im, ann, lb), axis = -1)[np.newaxis, ...], titles = ['red' + model_id, 'ann' + model_id, 'predict' + model_id], savefig = savefig, savename = savename + '_' + str(i))
-                else:
-                    display_images(np.stack((im, ann, lb), axis = -1)[np.newaxis, ...], titles = ['red' + model_id, 'ann' + model_id, 'predict' + model_id], savefig = savefig, savename = savename)
+    acc_list, loss_list, dice_list, sen_list, spe_list, iou_list = [], [], [], [], [], []
 
-            else: 
-                display_images(np.stack((im, ann, lb), axis = -1)[np.newaxis, ...], titles = ['red', 'ann', 'predict'])
-                
-    avg_acc = avg_metrics(acc_list)
-    avg_loss = avg_metrics(loss_list)
-    avg_dice = avg_metrics(dice_list)
-    avg_iou = avg_metrics(iou_list)
-    avg_sen = avg_metrics(sen_list)
-    avg_spe = avg_metrics(spe_list)
-    
-    print("Acc:{}, Dice:{}, mIoU:{}, loss:{}".format(avg_acc, avg_dice, avg_iou, avg_loss))
+    for i, logit in enumerate(pred_labels):
+        tr = gt[i]
+        ann = tr[:, :, 0]
+        tver = tversky(tr, logit[..., np.newaxis]).numpy()
+
+        loss_list.append(tver)
+        lb = logit.astype(np.int16)
+
+        acc_list.append(eva_acc(ann, lb))
+        dice_list.append(eva_dice(ann, logit))
+        sen_list.append(eva_sensitivity(ann, logit))
+        spe_list.append(eva_specificity(ann, logit))
+        iou_list.append(eva_miou(ann, logit))
+
+        if plot:
+            im = np.squeeze(rasterio.open(all_files[i][0]).read())
+
+            titles = [f'red{model_id}' if model_id else 'red', 
+                      f'ann{model_id}' if model_id else 'ann', 
+                      f'predict{model_id}' if model_id else 'predict']
+            
+            images = np.stack((im, ann, lb), axis=-1)[np.newaxis, ...]
+            if model_id and savefig and savename:
+                display_images(images, titles=titles, savefig=savefig, savename=f"{savename}_{i}")
+            else:
+                display_images(images, titles=titles, savefig=savefig, savename=savename)
+
+    avg_metrics_values = {
+        "Acc": avg_metrics(acc_list), 
+        "Dice": avg_metrics(dice_list), 
+        "mIoU": avg_metrics(iou_list), 
+        "Loss": avg_metrics(loss_list)
+    }
+
+    print(f"Acc: {avg_metrics_values['Acc']}, Dice: {avg_metrics_values['Dice']}, "
+          f"mIoU: {avg_metrics_values['mIoU']}, Loss: {avg_metrics_values['Loss']}")
 
     if save_scores:
         return acc_list, loss_list, dice_list, sen_list, spe_list, iou_list
-    
-    return avg_acc, avg_loss, avg_dice, avg_iou, avg_sen, avg_spe
+
+    return tuple(avg_metrics_values.values())
 
     
 def avg_metrics(lst):
