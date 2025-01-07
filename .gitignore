@@ -1,12 +1,7 @@
 # Ignore Python compiled files
-*.pyc
-*.pyo
-*.pyd
 __pycache__/
-core2/__pycache__/
 
-# Ignore config and test-related files
-config_cisong
+# Ignore test-related files
 test*
 
 # Ignore training-related files and directories
@@ -15,7 +10,6 @@ raw_image*
 
 # Ignore model files
 models/tree*
-saved_models/*
 
 # Ignore log files
 logs/
