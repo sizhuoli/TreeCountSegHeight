@@ -13,7 +13,6 @@ from tensorflow.keras import backend as K
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, EarlyStopping, ReduceLROnPlateau, TensorBoard
 from tensorflow.keras.models import load_model
 
-from core2.UNet_attention_segcount import UNet
 from core2.dataset_generator_segcount import DataGenerator
 from core2.frame_info_segcount import FrameInfo
 from core2.losses import tversky, accuracy, dice_coef, dice_loss, specificity, sensitivity, miou, weight_miou
@@ -92,33 +91,42 @@ class Trainer:
         return img
 
     def load_pretraining_data(self):
-        # read all initial training data
-        print('loading initial training data')
+        """Loads initial training data from the secondary directory."""
+        logging.info("Loading initial training data...")
         all_files2 = os.listdir(self.config.base_dir2)
-        # image channel 1
+        
+        # Filter files for channel 1
         all_files_c12 = [fn for fn in all_files2 if
                          fn.startswith(self.config.extracted_filenames[0]) and fn.endswith(self.config.image_type)]
 
         for fn in all_files_c12:
-            # loop through rectangles
-            img1 = rasterio.open(os.path.join(self.config.base_dir2, fn)).read()
+            base_path = os.path.join(self.config.base_dir2, fn)
+            
+            # Load primary raster channels
+            img1 = rasterio.open(base_path).read()
+
             if self.config.single_raster or not self.config.aux_data:
                 for c in range(1, self.config.image_channels):
-                    img1 = np.append(img1, rasterio.open(os.path.join(self.config.base_dir2,
-                                                                      fn.replace(self.config.extracted_filenames[0],
-                                                                                 self.config.extracted_filenames[c]))).read(),
+                    img1 = np.append(img1, 
+                                     rasterio.open(os.path.join(self.config.base_dir2,
+                                                                fn.replace(self.config.extracted_filenames[0],
+                                                                           self.config.extracted_filenames[c]))).read(),
                                      axis=0)
             else: 
-                for c in range(self.config.image_channels1 - 1):
-                    img1 = np.append(img1, rasterio.open(os.path.join(self.config.base_dir, fn.replace(self.config.channel_names1[0],
-                                                                                                  self.config.channel_names1[
-                                                                                                      c + 1]))).read(), axis=0)
+                for c in range(self.config.image_channels - 1):
+                    img1 = np.append(img1, 
+                                     rasterio.open(os.path.join(self.config.base_dir,
+                                                                fn.replace(self.config.channel_names1[0],
+                                                                           self.config.channel_names1[c + 1]))).read(), 
+                                     axis=0)
 
                 img2 = rasterio.open(
                     os.path.join(self.config.base_dir, fn.replace(self.config.channel_names1[0], self.config.channel_names2[0]))).read()
 
-            img1 = np.transpose(img1, axes=(1, 2, 0))  # Channel at the end
+            # Transpose img1 to (H, W, C)
+            img1 = np.transpose(img1, axes=(1, 2, 0))
             # img2 = np.transpose(img2, axes=(1,2,0))
+            
             annotation = rasterio.open(
                 os.path.join(self.config.base_dir2, fn.replace(self.config.extracted_filenames[0], self.config.annotation_fn))).read()
             annotation = np.squeeze(annotation)
@@ -150,7 +158,7 @@ class Trainer:
 
         if self.config.multires:
             from core2.UNet_multires_attention_segcount import UNet
-        elif not self.config.multires:
+        else:
             from core2.UNet_attention_segcount import UNet
         # ipdb.set_trace()
         self.model = UNet([self.config.BATCH_SIZE, *self.config.input_shape],
@@ -160,7 +168,6 @@ class Trainer:
         # save logs
         timestr = time.strftime("%Y%m%d-%H%M")
 
-        # log_dir = config.log_dir
         new_model_path = os.path.join(self.config.new_model_path, 'finetune_{}.h5'.format(timestr))
         checkpoint = ModelCheckpoint(new_model_path, monitor='val_loss', verbose=1,
                                      save_best_only=True, mode='min', save_weights_only=False)
