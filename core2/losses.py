@@ -1,7 +1,6 @@
 #    Edited by Sizhuo Li
 #    Author: Ankit Kariryaa, University of Bremen
 
-
 import tensorflow.keras.backend as K
 import numpy as np
 import tensorflow as tf
@@ -17,33 +16,32 @@ def tversky(y_true, y_pred, alpha=0.6, beta=0.4):
     :return: the loss
     """
     
-    y_t = y_true[...,0]
-    y_t = y_t[...,np.newaxis]
-    # weights
-    y_weights = y_true[...,1]
-    y_weights = y_weights[...,np.newaxis]
+    y_t = tf.cast(y_true[..., 0:1], tf.float32)
+    y_weights = tf.cast(y_true[..., 1:2], tf.float32) 
     
-    ones = 1 
-    p0 = y_pred  # proba that voxels are class i
-    p1 = ones - y_pred  # proba that voxels are not class i
+    p0 = tf.cast(y_pred, tf.float32)
+    p1 = 1.0 - p0
     g0 = y_t
-    g1 = ones - y_t
+    g1 = 1.0 - g0
 
     tp = tf.reduce_sum(y_weights * p0 * g0)
     fp = alpha * tf.reduce_sum(y_weights * p0 * g1)
     fn = beta * tf.reduce_sum(y_weights * p1 * g0)
 
-    EPSILON = 0.00001
+    # Adding a small epsilon to avoid division by zero
+    EPSILON = 1e-7
     numerator = tp
     denominator = tp + fp + fn + EPSILON
     score = numerator / denominator
     return 1.0 - tf.reduce_mean(score)
+
 
 def accuracy(y_true, y_pred):
     """compute accuracy"""
     y_t = y_true[...,0]
     y_t = y_t[...,np.newaxis]
     return K.equal(K.round(y_t), K.round(y_pred))
+
 
 def dice_coef(y_true, y_pred, smooth=0.0000001):
     """compute dice coef"""
@@ -61,11 +59,13 @@ def dice_coef(y_true, y_pred, smooth=0.0000001):
     union = K.sum(y_t) + K.sum(y_pred)
     return (2. * intersection + smooth) / (union + smooth)
 
+
 def dice_loss(y_true, y_pred):
     """compute dice loss"""
     # y_t = y_true[...,0]
     # y_t = y_t[...,np.newaxis]
     return 1 - dice_coef(y_true, y_pred)
+
 
 def true_positives(y_true, y_pred):
     """compute true positive"""
@@ -73,11 +73,13 @@ def true_positives(y_true, y_pred):
     y_t = y_t[...,np.newaxis]
     return K.round(y_t * y_pred)
 
+
 def false_positives(y_true, y_pred):
     """compute false positive"""
     y_t = y_true[...,0]
     y_t = y_t[...,np.newaxis]
     return K.round((1 - y_t) * y_pred)
+
 
 def true_negatives(y_true, y_pred):
     """compute true negative"""
@@ -85,11 +87,13 @@ def true_negatives(y_true, y_pred):
     y_t = y_t[...,np.newaxis]
     return K.round((1 - y_t) * (1 - y_pred))
 
+
 def false_negatives(y_true, y_pred):
     """compute false negative"""
     y_t = y_true[...,0]
     y_t = y_t[...,np.newaxis]
     return K.round((y_t) * (1 - y_pred))
+
 
 def sensitivity(y_true, y_pred):
     """compute sensitivity (recall)"""
@@ -99,6 +103,7 @@ def sensitivity(y_true, y_pred):
     fn = false_negatives(y_t, y_pred)
     return K.sum(tp) / (K.sum(tp) + K.sum(fn))
 
+
 def specificity(y_true, y_pred):
     """compute specificity (precision)"""
     y_t = y_true[...,0]
@@ -106,6 +111,7 @@ def specificity(y_true, y_pred):
     tn = true_negatives(y_t, y_pred)
     fp = false_positives(y_t, y_pred)
     return K.sum(tn) / (K.sum(tn) + K.sum(fp))
+
 
 def miou(y_true, y_pred):
     y_t = y_true[...,0]

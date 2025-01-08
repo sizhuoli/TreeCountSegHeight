@@ -6,11 +6,9 @@ Created on Sun Jun 13 01:21:12 2021
 @author: sizhuo
 """
 
-
+import tensorflow as tf
 from tensorflow.keras import models, layers
 from tensorflow.keras import regularizers
-
-import tensorflow.keras.backend as K
 
 
 def UNet(input_shape,input_label_channel, layer_count=64, regularizers = regularizers.l2(0.0001), gaussian_noise=0.1, weight_file = None, inputBN = 0):
@@ -95,16 +93,13 @@ def UNet(input_shape,input_label_channel, layer_count=64, regularizers = regular
         return seg_model
 
 
-
 def attention_up_and_concate(down_layer, layer):
-
-    in_channel = down_layer.get_shape().as_list()[3]
+    in_channel = down_layer.shape[3]
     up = layers.UpSampling2D(size=(2, 2))(down_layer)
     layer = attention_block_2d(x=layer, g=up, inter_channel=in_channel // 4)
-    my_concat = layers.Lambda(lambda x: K.concatenate([x[0], x[1]], axis=3))
-    concate = my_concat([up, layer])
-
-    return concate
+    my_concat = layers.Lambda(lambda x: tf.concat([x[0], x[1]], axis=3))
+    concatenated_tensor = my_concat([up, layer])
+    return concatenated_tensor
 
 
 def attention_block_2d(x, g, inter_channel):

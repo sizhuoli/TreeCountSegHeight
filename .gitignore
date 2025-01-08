@@ -1,0 +1,8 @@
+__pycache__/
+test*
+training*
+raw_image*
+models/tree*
+logs/
+Dockerfile
+.devcontainer/

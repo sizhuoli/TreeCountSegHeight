@@ -6,8 +6,8 @@ Created on Sun Jun 13 01:28:12 2021
 @author: sizhuo
 """
 
-
 import numpy as np
+
 
 def image_normalize(im, axis = (0,1), c = 1e-8):
     '''

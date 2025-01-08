@@ -1,6 +1,7 @@
 from tensorflow.keras import models, layers
 from tensorflow.keras import regularizers
 
+
 def UNet(input_shape,input_label_channel, layer_count=64, regularizers = regularizers.l2(0.0001), gaussian_noise=0.1, weight_file = None):
         """ Method to declare the UNet model.
 

@@ -2,7 +2,7 @@
 #    Author: Ankit Kariryaa, University of Bremen
 
 import numpy as np
-import cv2
+
 
 def image_normalize(im, axis = (0,1), c = 1e-8):
     '''

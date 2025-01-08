@@ -6,20 +6,17 @@ Created on Mon Nov  8 14:19:53 2021
 @author: sizhuo
 """
 
+from config.Preprocessing import Configuration
+from core2.preprocessing import Processor
 
-from config import Preprocessing
-from core2.preprocessing import processor
-
-config = Preprocessing.Configuration()
-
-prep = processor(config,boundary = 1, aux = 1)
-prep.extract_normal(boundary = 1, aux = 1)
+config = Configuration()
+prep = Processor(config, boundary = True, aux = True)
+prep.extract_training_sets()
 
 # # no boundary
-# prep = processor(config,boundary = 0, aux = 1)
-# prep.extract_normal(boundary = 0, aux = 1)
+# prep = processor(config, boundary = False, aux = True)
+# prep.extract_training_sets()
 
 # # svls (Spatially Varying Label Smoothing)
-# prep = processor(config,boundary = 0, aux = 1)
-# prep.extract_svls(boundary = 0, aux = 1)
-
+# prep = processor(config, boundary = False, aux = True)
+# prep.extract_svls

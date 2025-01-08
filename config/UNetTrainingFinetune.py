@@ -8,13 +8,11 @@ Created on Sun Feb 28 22:10:30 2021
 
 class Configuration:
     def __init__(self):
-
         # small local dataset for fine-tuning, here data from Finland as used in the paper, downloadable with the google drive link
         self.base_dir = '/home/sizhuo/Downloads/extracted_centroids_kernel5/' # 'path_to_local_data'
         self.image_type = '.png'
         self.oversample_times = 4 # oversample the (small) local data to match with the (larger) pretraining dataset if needed. Eg, the pretraining denmark dataset contains around 80 image patches, while the local dataset (here finland) contains only 18 patches. To balance the amount of data seen by the model during finetuning, the local data is oversampled 4 times.
         
-        ##### 
         # danish data used for pretraining, downloadable with the google drive link
         self.base_dir2 = '/home/sizhuo/Downloads/extracted_data_train_patch_normalized/' # 'path_to_base_data'
 
@@ -64,5 +62,3 @@ class Configuration:
         self.model_path = '/home/sizhuo/Downloads/saved_models/trees_20210620-0205_Adam_e4_infraredgreenblue_256_84_frames_weightmapTversky_MSE100_5weight_attUNet.h5'
         self.new_model_path = '/home/sizhuo/Downloads/saved_models/finetune/'
         self.log_dir = '/home/sizhuo/Downloads/logs/'
-
-

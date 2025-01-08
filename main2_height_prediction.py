@@ -7,57 +7,36 @@ Created on Wed Mar 24 15:56:33 2021
 """
 
 import os
-os.environ["CUDA_VISIBLE_DEVICES"]="0"
-
-
-import tensorflow as tf
-import numpy as np
-from PIL import Image
-import rasterio
-import imgaug as ia
-from imgaug import augmenters as iaa
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-import tensorflow.keras.backend as K
-
-import imageio
-import os
 import time
+import warnings    
+import logging
+from tqdm import tqdm
+import numpy as np
+import rasterio
 import rasterio.warp             
 from functools import reduce
+
+import tensorflow as tf
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras import backend as K
 from tensorflow.keras.models import load_model
+from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, EarlyStopping, ReduceLROnPlateau, TensorBoard
 
 from core2.UNet_attention_CHM import UNet
-
 from core2.optimizers import adaDelta, adagrad, adam, nadam
 from core2.frame_info_CHM import FrameInfo
 from core2.dataset_generator_CHM import DataGenerator
 from core2.split_frames import split_dataset
 from core2.visualize import display_images
 
-import json
-from sklearn.model_selection import train_test_split
-from skimage.transform import resize
+from config import UNetTraining_CHM
 
-# %matplotlib inline
-import matplotlib.pyplot as plt  # plotting tools
-import matplotlib.patches as patches
-from matplotlib.patches import Polygon
-from tqdm import tqdm
-import warnings                  # ignore annoying warnings
 warnings.filterwarnings("ignore")
-import logging
 logger = logging.getLogger()
 logger.setLevel(logging.CRITICAL)
+os.environ["CUDA_VISIBLE_DEVICES"]="0"
 
-# %reload_ext autoreload
-# %autoreload 2
-from IPython.core.interactiveshell import InteractiveShell
-InteractiveShell.ast_node_interactivity = "all"
 
-from config import UNetTraining_CHM
-from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, EarlyStopping, ReduceLROnPlateau, TensorBoard
-
-print(tf.config.list_physical_devices('GPU'))
 config = UNetTraining_CHM.Configuration()
 
 # Loading data (train and val): read all images/frames into memory
@@ -163,4 +142,3 @@ loss_history = [model.fit(train_generator,
                           workers=1,
 #                         use_multiprocessing=True # the generator is not very thread safe
                         )]
-
