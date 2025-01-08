@@ -1,25 +1,23 @@
+import logging
 import os
 import time
 import warnings
-import logging
-
-import scipy
 
 import numpy as np
 import rasterio
-import rasterio.warp  # Reproject raster samples
+import rasterio.warp
+import scipy
 from skimage.transform import resize
-
 import tensorflow as tf
-from tensorflow.keras.models import load_model
 from tensorflow.keras import backend as K
 from tensorflow.keras.callbacks import ModelCheckpoint, LearningRateScheduler, EarlyStopping, ReduceLROnPlateau, TensorBoard
+from tensorflow.keras.models import load_model
 
 from core2.UNet_attention_segcount import UNet
+from core2.dataset_generator_segcount import DataGenerator
+from core2.frame_info_segcount import FrameInfo
 from core2.losses import tversky, accuracy, dice_coef, dice_loss, specificity, sensitivity, miou, weight_miou
 from core2.optimizers import adaDelta, adagrad, adam, nadam
-from core2.frame_info_segcount import FrameInfo
-from core2.dataset_generator_segcount import DataGenerator
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger()
@@ -30,87 +28,68 @@ tf.config.run_functions_eagerly(True)
 class Trainer:
     def __init__(self, config):
         self.config = config
-
-    def load_local_data(self):
-
-        all_files = os.listdir(self.config.base_dir)
-        # image channel 1
-        all_files_c1 = [fn for fn in all_files if
-                        fn.startswith(self.config.extracted_filenames[0]) and fn.endswith(self.config.image_type)]
-
         self.frames = []
 
-        for oo in range(self.config.oversample_times):
-            print('loading local data')
-            for i, fn in enumerate(all_files_c1):
-                # loop through rectangles
-                comb_img = rasterio.open(os.path.join(self.config.base_dir, fn)).read()
+    def load_local_data(self):
+        logging.info("Loading local data...")
+        all_files = os.listdir(self.config.base_dir)
+        
+        # Filter files for channel 1
+        all_files_c1 = [fn for fn in all_files if
+                        fn.startswith(self.config.extracted_filenames[0]) and fn.endswith(self.config.image_type)]
+        
+        for _ in range(self.config.oversample_times):
+            for fn in all_files_c1:
+                base_path = os.path.join(self.config.base_dir, fn)
+                comb_img = self._load_image(base_path)
 
-                if self.config.upsample:
-                    comb_img = resize(comb_img[:, :, :], (1, int(comb_img.shape[1] * 2), int(comb_img.shape[2] * 2)),
-                                      preserve_range=1)
+                for c in range(1, self.config.image_channels):
+                    cur_channel_fn = fn.replace(self.config.extracted_filenames[0], self.config.extracted_filenames[c])
+                    cur_channel_path = os.path.join(self.config.base_dir, cur_channel_fn)
+                    cur_channel_img = self._load_image(cur_channel_path)
+                    comb_img = np.append(comb_img, cur_channel_img, axis=0)
 
-                if self.config.single_raster or not self.config.aux_data:
-                    # print('If single raster or multi raster without aux')
-                    for c in range(1, self.config.image_channels):
-                        # loop through raw channels
-                        # comb_img = np.append(comb_img, rasterio.open(os.path.join(config.base_dir, fn.replace(config.extracted_filenames[0],config.extracted_filenames[c+1]))).read(), axis = 0)
-                        cur = rasterio.open(os.path.join(self.config.base_dir, fn.replace(self.config.extracted_filenames[0],
-                                                                                     self.config.extracted_filenames[c]))).read()
-                        # print('bef', np.min(cur), np.mean(cur))
-                        if self.config.upsample:
-                            cur = resize(cur[:, :, :], (1, int(cur.shape[1] * 2), int(cur.shape[2] * 2)), preserve_range=1)
-                        # print('aft', np.min(cur))
-                        comb_img = np.append(comb_img, cur, axis=0)
+                # Transpose image to (H, W, C)
+                comb_img = np.transpose(comb_img, axes=(1, 2, 0))
 
-                else:  # multi raster
-                    print('Multi raster with aux data')
-                    for c in range(1, self.config.image_channels):
-                        # loop through raw channels
-                        cur = rasterio.open(os.path.join(self.config.base_dir, fn.replace(self.config.extracted_filenames[0],
-                                                                                     self.config.extracted_filenames[c]))).read()
-                        # print(np.min(cur), np.mean(cur), np.max(cur))
-                        if self.config.upsample:
-                            cur = resize(cur[:, :, :], (1, int(comb_img.shape[1] * 2), int(comb_img.shape[2] * 2)),
-                                         preserve_range=1)
-                        # print(np.min(cur))
-                        comb_img = np.append(comb_img, cur, axis=0)
-
-                comb_img = np.transpose(comb_img, axes=(1, 2, 0))  # Channel at the end
-                # print('statis', comb_img.min(), comb_img.mean(), comb_img.max())
-                # annotation_im = Image.open(os.path.join(config.base_dir, fn.replace(config.extracted_filenames[0],config.annotation_fn)))
-                # np.asarray(annotation_im)
-                # annotation = np.array(annotation_im)
-                annotation = rasterio.open(
-                    os.path.join(self.config.base_dir, fn.replace(self.config.extracted_filenames[0], self.config.annotation_fn))).read()
+                # Load annotation
+                annotation_path = base_path.replace(self.config.extracted_filenames[0], self.config.annotation_fn)
+                annotation = rasterio.open(annotation_path).read()
                 annotation = np.squeeze(annotation)
-                # print('bef', np.unique(annotation))
                 if self.config.upsample:
                     annotation = scipy.ndimage.zoom(annotation, 2, order=1)
-                    # annotation = resize(annotation[:, :], (int(annotation.shape[0]*2), int(annotation.shape[1]*2)), preserve_range = 1).astype(int)
-                # print('aft', np.unique(annotation))
-                weight = rasterio.open(
-                    os.path.join(self.config.base_dir, fn.replace(self.config.extracted_filenames[0], self.config.weight_fn))).read()
+
+                # Load weight map
+                weight_path = base_path.replace(self.config.extracted_filenames[0], self.config.weight_fn)
+                weight = rasterio.open(weight_path).read()
                 weight = np.squeeze(weight)
-                # print('bef', np.unique(weight))
                 if self.config.upsample:
                     weight = scipy.ndimage.zoom(weight, 2, order=1)
-                    # weight = resize(weight[:, :], (int(weight.shape[0]*2), int(weight.shape[1]*2)), preserve_range = 1).astype(int)
-                density = rasterio.open(
-                    os.path.join(self.config.base_dir, fn.replace(self.config.extracted_filenames[0], self.config.density_fn))).read()
+
+                # Load density map
+                density_path = base_path.replace(self.config.extracted_filenames[0], self.config.density_fn)
+                density = rasterio.open(density_path).read()
                 density = np.squeeze(density)
 
                 if self.config.upsample:
-                    density = resize(density[:, :], (int(density.shape[0] * 2), int(density.shape[1] * 2)),
-                                     preserve_range=1).astype(float)
-                    # print('aft', density.sum())
-                    density = density * (density.shape[0] / float(density.shape[0] * 2)) * (
-                                density.shape[1] / float(density.shape[1] * 2))
+                    new_shape = (density.shape[0] * 2, density.shape[1] * 2)
+                    density = resize(density, new_shape, preserve_range=True).astype(float)
+                    scale_factor = (density.shape[0] / new_shape[0]) * (density.shape[1] / new_shape[1])
+                    density *= scale_factor
 
-                f = FrameInfo(comb_img, annotation, weight, density)
-                self.frames.append(f)
+                # Store frame
+                self.frames.append(FrameInfo(comb_img, annotation, weight, density))
 
-        print('local data loaded, total no. frames: ', len(self.frames))
+        logging.info(f"Local data loaded. Total number of frames: {len(self.frames)}")
+
+    def _load_image(self, path):
+        """Loads a single raster image and applies optional upsampling."""
+        img = rasterio.open(path).read()
+        if self.config.upsample:
+            img = resize(
+                img, (1, img.shape[1] * 2, img.shape[2] * 2), preserve_range=True
+            )
+        return img
 
     def load_pretraining_data(self):
         # read all initial training data
@@ -119,27 +98,18 @@ class Trainer:
         # image channel 1
         all_files_c12 = [fn for fn in all_files2 if
                          fn.startswith(self.config.extracted_filenames[0]) and fn.endswith(self.config.image_type)]
-        # print(all_files_c12)
 
-        for i, fn in enumerate(all_files_c12):
+        for fn in all_files_c12:
             # loop through rectangles
             img1 = rasterio.open(os.path.join(self.config.base_dir2, fn)).read()
-            # print(img1.mean())
-            # print(img1.std())
-            # print(np.min(img1), np.mean(img1), np.max(img1))
             if self.config.single_raster or not self.config.aux_data:
-                # print('If single raster or multi raster without aux')
                 for c in range(1, self.config.image_channels):
-                    # loop through raw channels
                     img1 = np.append(img1, rasterio.open(os.path.join(self.config.base_dir2,
                                                                       fn.replace(self.config.extracted_filenames[0],
                                                                                  self.config.extracted_filenames[c]))).read(),
                                      axis=0)
-                    # print(np.min(img1), np.mean(img1), np.max(img1))
-            else:  # multi raster
-                print('Multi raster with aux data')
+            else: 
                 for c in range(self.config.image_channels1 - 1):
-                    # loop through raw channels
                     img1 = np.append(img1, rasterio.open(os.path.join(self.config.base_dir, fn.replace(self.config.channel_names1[0],
                                                                                                   self.config.channel_names1[
                                                                                                       c + 1]))).read(), axis=0)

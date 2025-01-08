@@ -5,27 +5,28 @@ Created on Wed Sep  8 14:31:21 2021
 
 @author: sizhuo
 """
-import os
+
+
 import logging
-import numpy as np
-import rasterio                  # I/O raster data (netcdf, height, geotiff, ...)
-from rasterio import merge, windows
-from rasterio.enums import Resampling
-from shapely.geometry import Point, Polygon
-from shapely.geometry import mapping, shape
-from tqdm import tqdm
+import os
 from itertools import product
+
+import cv2
+import matplotlib.pyplot as plt  
+import numpy as np
+import rasterio
+from rasterio import windows
+from rasterio.enums import Resampling
+import scipy
 from tensorflow.keras.models import load_model
 from tensorflow.keras import backend as K
 import tensorflow as tf
-import cv2
-import matplotlib.pyplot as plt  
-import scipy
+from tqdm import tqdm
 
-from core2.losses import tversky, accuracy, dice_coef, dice_loss, specificity, sensitivity, miou, weight_miou
-from core2.eva_losses import eva_acc, eva_dice, eva_sensitivity, eva_specificity, eva_miou 
+from core2.eva_losses import eva_acc, eva_dice, eva_miou, eva_sensitivity, eva_specificity
+from core2.frame_info_multires_segcount import image_normalize
+from core2.losses import accuracy, dice_coef, dice_loss, miou, sensitivity, specificity, tversky, weight_miou
 from core2.optimizers import adaDelta, adagrad, adam, nadam
-from core2.frame_info_multires_segcount import FrameInfo, image_normalize
 from core2.visualize import display_images
 
 logging.getLogger().setLevel(logging.CRITICAL)
@@ -42,9 +43,9 @@ class Eva_segcount:
         
     def _load_models(self):
         models = []
-        optimizer = tf.keras.optimizers.Adam(learning_rate= 0.0001, epsilon= 1e-08)
+        optimizer = adam
 
-        for model_path in self.config.trained_model_paths: # deal with keras version mismatch
+        for model_path in self.config.trained_model_paths:
             model = load_model(
                 model_path,
                 custom_objects={
@@ -63,9 +64,7 @@ class Eva_segcount:
                 optimizer=optimizer,
                 loss={'output_seg': tversky, 'output_count': 'mse'},
                 metrics={'output_seg': [dice_coef, dice_loss, specificity, sensitivity, accuracy, miou, weight_miou],
-                         'output_dens': [tf.keras.metrics.RootMeanSquaredError()]
-                         },
-                         )
+                         'output_dens': [tf.keras.metrics.RootMeanSquaredError()]})
             models.append(model)
         return models
     

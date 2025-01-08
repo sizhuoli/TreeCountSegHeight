@@ -1,15 +1,8 @@
-# Ignore Python compiled files
 __pycache__/
-
-# Ignore test-related files
 test*
-
-# Ignore training-related files and directories
 training*
 raw_image*
-
-# Ignore model files
 models/tree*
-
-# Ignore log files
 logs/
+Dockerfile
+.devcontainer/
