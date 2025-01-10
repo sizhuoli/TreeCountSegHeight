@@ -4,3 +4,4 @@ training*
 raw_image*
 models/
 logs/
+predictions/

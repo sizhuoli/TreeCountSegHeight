@@ -24,7 +24,6 @@ from tensorflow.keras.models import load_model
 from tensorflow.keras import backend as K
 
 from core2.losses import tversky, accuracy, dice_coef, dice_loss, specificity, sensitivity, miou, weight_miou
-from core2.UNet_attention_segcount import UNet
 from core2.optimizers import adaDelta, adagrad, adam, nadam
 from core2.frame_info import image_normalize
 
@@ -34,21 +33,27 @@ logger.setLevel(logging.CRITICAL)
 class Anaer:
     def __init__(self, config):
         self.config = config
-        self.all_files = load_files(self.config)
+        self.all_files = self._load_files()
 
+    def _load_files(self):
+        exclude = set(['water_new', 'md5', 'pred', 'test_kay'])
+        all_files = []
+        for root, dirs, files in os.walk(self.config.input_image_dir):
+            dirs[:] = [d for d in dirs if d not in exclude]
+            for file in files:
+                if file.endswith(self.config.input_image_type) and file.startswith(self.config.input_image_pref):
+                    all_files.append((os.path.join(root, file), file))
+        print('Number of raw tif to predict:', len(all_files))
+        if self.config.fillmiss: # only fill the missing predictions (smk) # while this include north
+            doneff = gps.read_file(self.config.grids)
+            donef2 = list(doneff['filepath'])
+            done_names= set([os.path.basename(f)[:6] for f in donef2])
+            all_files = [f for f in all_files if os.path.splitext(f[1])[0] not in done_names]
+        return all_files
+        
     def load_model(self):
         OPTIMIZER = adam
         if not self.config.change_input_size:
-
-            # tf.config.threading.set_intra_op_parallelism_threads(
-            #     1
-            # )
-            # K.clear_session()
-            # ipdb.set_trace()
-            # self.model = load_model(self.config.trained_model_path, custom_objects={'tversky': tversky, 'dice_coef': dice_coef, 'dice_loss':dice_loss, 'accuracy':accuracy, 'specificity':specificity, 'sensitivity':sensitivity, 'K': K}, compile=False)
-            # self.model.compile(optimizer=OPTIMIZER, loss=tversky, metrics=[dice_coef, dice_loss, specificity, sensitivity, accuracy, miou, weight_miou])
-
-            # in case different python versions used for training and testing
             if self.config.multires:
                 from core2.UNet_multires_attention_segcount import UNet
             elif not self.config.multires:
@@ -62,8 +67,7 @@ class Anaer:
             self.model.trainable = False
             self.model_chm = None
 
-
-        elif self.config.change_input_size:
+        else:
             # self.models = []
             # modeli = load_model(self.config.trained_model_path, custom_objects={'tversky': tversky, 'dice_coef': dice_coef, 'dice_loss':dice_loss, 'accuracy':accuracy, 'specificity':specificity, 'sensitivity':sensitivity}, compile=False)
             # modeli.summary()
@@ -122,30 +126,8 @@ class Anaer:
             raise NotImplementedError('not supporting yet')
         print('Model(s) loaded')
 
-
     def segcount_RUN(self):
         predict_ready_run(self.config, self.all_files, self.model, self.model_chm, self.config.output_dir, eva = 0, th = self.config.threshold, rgb2gray = self.config.rgb2gray)
-        return
-
-
-def load_files(config):
-    exclude = set(['water_new', 'md5', 'pred', 'test_kay'])
-    all_files = []
-    for root, dirs, files in os.walk(config.input_image_dir):
-        dirs[:] = [d for d in dirs if d not in exclude]
-        for file in files:
-            if file.endswith(config.input_image_type) and file.startswith(config.input_image_pref):
-                 all_files.append((os.path.join(root, file), file))
-    print('Number of raw tif to predict:', len(all_files))
-    if config.fillmiss: # only fill the missing predictions (smk) # while this include north
-        doneff = gps.read_file(config.grids)
-        donef2 = list(doneff['filepath'])
-        done_names= set([os.path.basename(f)[:6] for f in donef2])
-        all_files = [f for f in all_files if os.path.splitext(f[1])[0] not in done_names]
-    # print(all_files)
-    # print('Number of missing tif to predict:', len(all_files))
-
-    return all_files
 
 
 def addTOResult(res, prediction, row, col, he, wi, operator = 'MAX'):
@@ -232,7 +214,7 @@ def predict_using_model_segcount(model, batch, batch_pos, maskseg, maskdens, ope
     return maskseg, maskdens
 
 
-def predict_using_model_segcount_fi(model, batch, batch_pos, maskseg, maskdens, operator, upsample = 1, downsave = 1, upscale = 2, rescale_values = 1):
+def predict_using_model_segcount_fi(model, batch, batch_pos, maskseg, maskdens, operator, upsample = True, downsave = 1, upscale = 2, rescale_values=True):
     # batch: [[(256, 256, 5), (128, 128, 1)], [(256, 256, 5), (128, 128, 1)], ...]. len = 200
     b1 = batch[0]
     tm1 = np.stack(batch, axis = 0) #stack a list of arrays along axis
@@ -261,7 +243,7 @@ def predict_using_model_segcount_fi(model, batch, batch_pos, maskseg, maskdens, 
     return maskseg, maskdens
 
 
-def predict_using_model_chm_fi(model, batch, batch_pos, mask, operator, upsample = 1, downsave = 1, upscale = 2, rescale_values = 1):
+def predict_using_model_chm_fi(model, batch, batch_pos, mask, operator, upsample = True, downsave = 1, upscale = 2, rescale_values = True):
     # batch: [[(256, 256, 5), (128, 128, 1)], [(256, 256, 5), (128, 128, 1)], ...]. len = 200
 
     b1 = batch[0]
@@ -300,7 +282,7 @@ def predict_using_model_chm_fi(model, batch, batch_pos, mask, operator, upsample
     return mask
 
 
-def detect_tree_segcount_fi(config, model, img, width=256, height=256, stride = 128, normalize=True, auxData = 0, singleRaster = 1, multires = 1, upsample = 1, downsave = 1, upscale = 2, rescale_values = 1, rgb2gray = 0):
+def detect_tree_segcount_fi(config, model, img, width=256, height=256, stride = 128, normalize=True, auxData = 0, singleRaster = 1, multires = 1, upsample = True, downsave = 1, upscale = 2, rescale_values=True, rgb2gray = 0):
     if 'chm' in config.channel_names1:
         raise NotImplementedError('not supporting chm as input yet')
     else:
@@ -416,7 +398,7 @@ def detect_tree_segcount_fi(config, model, img, width=256, height=256, stride = 
     return masksegs, maskdenss, meta
 
 
-def detect_tree_rawtif_fi(config, model, img, channels,  width=256, height=256, stride = 128, normalize=0, maxnorm = 0, upsample = 1, downsave = 1, upscale = 2, rescale_values = 1):
+def detect_tree_rawtif_fi(config, model, img, channels,  width=256, height=256, stride = 128, normalize=0, maxnorm = 0, upsample = True, downsave = 1, upscale = 2, rescale_values=True):
     # for FI, upsample input images to deal with resolution diff
 
     #single rater or multi raster without aux
@@ -427,19 +409,15 @@ def detect_tree_rawtif_fi(config, model, img, channels,  width=256, height=256, 
         meta['dtype'] = np.float32
 
     offsets = product(range(0, nols, stride), range(0, nrows, stride))
-    # print(offsets)
     big_window = windows.Window(col_off=0, row_off=0, width=nols, height=nrows)
-#     print(nrows, nols)
 
     # mask = np.zeros((nrows, nols), dtype=meta['dtype'])
 
     if downsave and upsample:
         mask = np.zeros((int(nrows), int(nols)), dtype=meta['dtype'])
-
     # if for denmark-like resolution
     else:
         mask = np.zeros((int(nrows/2), int(nols/2)), dtype=meta['dtype'])
-        # print('HERE!!!!!!!!!!!!!!!!!!!!!!!!')
         # print(mask.shape)
 
     batch = []
@@ -485,7 +463,6 @@ def detect_tree_rawtif_fi(config, model, img, channels,  width=256, height=256, 
             # print('NDVI', NDVI.max(), NDVI.min())
             # print('bands', temp_im.max(), temp_im.min())
             temp_im = np.append(temp_im, NDVI, axis = -1)
-
 
         # print('max rescaling', temp_im.max)
         # do global normalize to avoid blocky..
@@ -608,13 +585,13 @@ def detect_tree_rawtif_fi(config, model, img, channels,  width=256, height=256, 
         
         # batch_pos.append((int(window.col_off/2), int(window.row_off/2), int(window.width/2), int(window.height/2)))
         if (len(batch) == config.BATCH_SIZE):
-            mask = predict_using_model_chm_fi(model, batch, batch_pos, mask, config.operator, upsample = 1, downsave = 1, upscale = 2, rescale_values = 1)
+            mask = predict_using_model_chm_fi(model, batch, batch_pos, mask, config.operator, upsample = True, downsave = 1, upscale = 2, rescale_values=True)
             batch = []
             batch_pos = []
 
     # To handle the edge of images as the image size may not be divisible by n complete batches and few frames on the edge may be left.
     if batch:
-        mask = predict_using_model_chm_fi(model, batch, batch_pos, mask, config.operator, upsample = 1, downsave = 1, upscale = 2, rescale_values = 1)
+        mask = predict_using_model_chm_fi(model, batch, batch_pos, mask, config.operator, upsample = True, downsave = 1, upscale = 2, rescale_values=True)
         batch = []
         batch_pos = []
 
@@ -622,7 +599,6 @@ def detect_tree_rawtif_fi(config, model, img, channels,  width=256, height=256, 
         mask = mask * 97.19
 
     return(mask, meta)
-
 
 
 def predict_ready_run(config, all_files, model_segcount, model_chm, output_dir, eva = 0, th = 0.5, rgb2gray = 0):
@@ -670,11 +646,7 @@ def predict_ready_run(config, all_files, model_segcount, model_chm, output_dir, 
                             ggt = np.squeeze(chm.read())
                 else:
                     continue
-
-
             counter += 1
-
-
         else:
             print('Skipping: File already analysed!', fullPath)
 
@@ -714,7 +686,7 @@ def writeMaskToDisk(detected_mask, detected_meta, wp, image_type, output_shapefi
                                 'nodata': 255
                             }
                         )
-        ##################################################################################################
+        
     with rasterio.open(wp, 'w', **meta) as outds:
         outds.write(detected_mask, 1)
     if create_countors:
@@ -757,8 +729,6 @@ def writeMaskToDiskChm(detected_mask, detected_meta, wp, image_type, write_as_ty
     return
 
 def rgb2gray_convert(rgb):
-
     r, g, b = rgb[:,:,0], rgb[:,:,1], rgb[:,:,2]
     gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
-
     return gray

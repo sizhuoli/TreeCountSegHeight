@@ -35,7 +35,7 @@ class Configuration:
         self.input_size = 256
         self.input_shape = (self.input_size, self.input_size, len(self.channel_names))
         self.input_label_channel = [self.data_all]
-        self.aux_data = False # 1 for detchm
+        self.aux_data = False # True for detchm
         self.BATCH_SIZE = 8 # Depends upon GPU memory and WIDTH and HEIGHT (Note: Batch_size for prediction can be different then for training.
         self.WIDTH=256 # Should be same as the WIDTH used for training the model
         self.HEIGHT=256 # Should be same as the HEIGHT used for training the model
