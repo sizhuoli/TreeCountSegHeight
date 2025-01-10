@@ -2,7 +2,5 @@ __pycache__/
 test*
 training*
 raw_image*
-models/tree*
+models/
 logs/
-Dockerfile
-.devcontainer/

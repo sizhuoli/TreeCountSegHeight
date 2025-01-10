@@ -43,28 +43,19 @@ class Eva_segcount:
         
     def _load_models(self):
         models = []
-        optimizer = adam
 
         for model_path in self.config.trained_model_paths:
-            model = load_model(
-                model_path,
-                custom_objects={
-                    'tversky': tversky,
-                    'dice_coef': dice_coef,
-                    'dice_loss': dice_loss,
-                    'accuracy': accuracy,
-                    'specificity': specificity,
-                    'sensitivity': sensitivity,
-                    'K': K,
-                },
-                compile = False,
-                safe_mode = False
-            )
-            model.compile(
-                optimizer=optimizer,
-                loss={'output_seg': tversky, 'output_count': 'mse'},
-                metrics={'output_seg': [dice_coef, dice_loss, specificity, sensitivity, accuracy, miou, weight_miou],
-                         'output_dens': [tf.keras.metrics.RootMeanSquaredError()]})
+            if self.config.multires:
+                from core2.UNet_multires_attention_segcount import UNet
+            else:
+                from core2.UNet_attention_segcount import UNet
+
+            model = UNet([self.config.BATCH_SIZE, *self.config.input_shape],
+                         self.config.input_label_channel, inputBN=self.config.inputBN)
+            model.load_weights(model_path)
+            model.compile(optimizer=adam,
+                          loss=tversky,
+                          metrics=[dice_coef, dice_loss, specificity, sensitivity, accuracy, miou, weight_miou])
             models.append(model)
         return models
     
@@ -280,9 +271,7 @@ def detect_tree_segcount_save(config, models, img, width=256, height=256, stride
                     patch1 = np.zeros((height, width, len(img))) # except for the last channel
                 
                     for ch in range(1, len(img)-1): # except for the last channel 
-                        
                         imgi = rasterio.open(img[ch]) 
-                        
                         sm1 = imgi.read(
                                         out_shape=(
                                         1,
