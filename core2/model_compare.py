@@ -71,12 +71,22 @@ class eva_segcount:
         self.models = []
         for mod in self.config.trained_model_paths:
             # modeli = load_model(mod, custom_objects={'tversky': tversky, 'dice_coef': dice_coef, 'dice_loss':dice_loss, 'accuracy':accuracy, 'specificity':specificity, 'sensitivity':sensitivity}, compile=False)
-            # deal with keras version mismatch
-            modeli = load_model(mod, custom_objects={'tversky': tversky, 'dice_coef': dice_coef, 'dice_loss':dice_loss, 'accuracy':accuracy, 'specificity':specificity, 'sensitivity':sensitivity, 'K': K}, compile=False)
-            
-            modeli.compile(optimizer=OPTIMIZER, loss={'output_seg':tversky, 'output_count':'mse'},
-                            metrics={'output_seg':[dice_coef, dice_loss, specificity, sensitivity, accuracy, miou, weight_miou],
-                                'output_dens':[tf.keras.metrics.RootMeanSquaredError()]})
+            # deal with keras version
+            if self.config.multires:
+                from core2.UNet_multires_attention_segcount import UNet
+            elif not self.config.multires:
+                from core2.UNet_attention_segcount import UNet
+            modeli = UNet([self.config.BATCH_SIZE, *self.config.input_shape],
+                              self.config.input_label_channel, inputBN=self.config.inputBN)
+            modeli.load_weights(mod)
+            modeli.compile(optimizer=OPTIMIZER, loss=tversky,
+                               metrics=[dice_coef, dice_loss, specificity, sensitivity, accuracy, miou, weight_miou])
+
+            # modeli = load_model(mod, custom_objects={'tversky': tversky, 'dice_coef': dice_coef, 'dice_loss':dice_loss, 'accuracy':accuracy, 'specificity':specificity, 'sensitivity':sensitivity, 'K': K}, compile=False)
+            #
+            # modeli.compile(optimizer=OPTIMIZER, loss={'output_seg':tversky, 'output_count':'mse'},
+            #                 metrics={'output_seg':[dice_coef, dice_loss, specificity, sensitivity, accuracy, miou, weight_miou],
+            #                     'output_dens':[tf.keras.metrics.RootMeanSquaredError()]})
             self.models.append(modeli)
             modeli.summary()
             
