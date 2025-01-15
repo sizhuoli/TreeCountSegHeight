@@ -1,7 +1,8 @@
 __pycache__/
 test*
 training*
-raw_image*
+input_images/
 models/
 logs/
 predictions/
+data*

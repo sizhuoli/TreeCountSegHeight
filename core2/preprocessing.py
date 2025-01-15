@@ -212,7 +212,7 @@ class Processor:
             polygon_to_pixel(polygons_in_area, overlap.shape[1:], profile, annotation_path)
 
         if self.boundary:
-            boundary_path = os.path.join(self.config.path_to_write, f"{self.extracted_boundary_filename}_{write_counter}.json")
+            boundary_path = os.path.join(self.config.path_to_write, f"{self.config.extracted_boundary_filename}_{write_counter}.json")
             polygon_to_pixel(boundaries_df, overlap.shape[1:], profile, boundary_path)
 
         return write_counter + 1
