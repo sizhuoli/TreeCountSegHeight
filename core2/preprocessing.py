@@ -209,7 +209,7 @@ class Processor:
                 dst.write(data, 1)
 
             annotation_path = os.path.join(self.config.path_to_write, f"{self.config.extracted_annotation_filename}_{write_counter}.json")
-            polygon_to_pixel(polygons_in_area, overlap.shape[1:], profile, annotation_path)
+            polygon_to_pixel(polygons_in_area, overlap.shape[1:], profile, annotation_path, gaussian=True)
 
         if self.boundary:
             boundary_path = os.path.join(self.config.path_to_write, f"{self.config.extracted_boundary_filename}_{write_counter}.json")
@@ -282,7 +282,7 @@ def polygon_to_pixel(area_df, area_shape, profile, filename, outline=0, fill=1, 
     if gaussian: # Generate Gaussian kernel density map
         density_map = generate_gaussian_density_map(area_shape, polygons_in_pixels, kernel_size, kernel_sigma)
         profile['dtype'] = rasterio.float32
-        kernel_filepath = filename.replace('.json', '_kernel.png')
+        kernel_filepath = filename.replace('.json', '.png').replace('annotation', 'ann_kernel')
         with rasterio.open(kernel_filepath, 'w', **profile) as dst:
             dst.write(density_map.astype(rasterio.float32), 1)
 
@@ -484,12 +484,27 @@ def generate_gaussian_density_map(shape: Tuple[int, int], points: List[Tuple[int
     Generates a Gaussian density map for given points.
     """
     density_map = np.zeros(shape, dtype=np.float32)
+
+    kernel_radius = kernel_size // 2
     gaussian_kernel = gaussian_filter(np.zeros((kernel_size, kernel_size)), sigma=sigma)
     gaussian_kernel /= gaussian_kernel.sum()
 
     for r, c in points:
         if 0 <= r < shape[0] and 0 <= c < shape[1]:
-            density_map[r:r + kernel_size, c:c + kernel_size] += gaussian_kernel
+            # Determine bounds for the kernel on the density map
+            r_start = max(r - kernel_radius, 0)
+            r_end = min(r + kernel_radius + 1, shape[0])
+            c_start = max(c - kernel_radius, 0)
+            c_end = min(c + kernel_radius + 1, shape[1])
+
+            # Determine bounds for the kernel itself
+            k_r_start = max(kernel_radius - r, 0)
+            k_r_end = k_r_start + (r_end - r_start)
+            k_c_start = max(kernel_radius - c, 0)
+            k_c_end = k_c_start + (c_end - c_start)
+
+            # Add the cropped kernel to the density map
+            density_map[r_start:r_end, c_start:c_end] += gaussian_kernel[k_r_start:k_r_end, k_c_start:k_c_end]
 
     return density_map
 
