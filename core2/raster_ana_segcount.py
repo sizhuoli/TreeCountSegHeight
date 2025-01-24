@@ -691,9 +691,9 @@ def predict_ready_run(config, all_files, model_segcount, model_chm, output_dir, 
         heights_pr = np.array([])
     outputFiles = []
     for fullPath, filename in tqdm(all_files):
-        outputFile = os.path.join(output_dir, filename[:-4] + config.output_suffix + config.output_image_type)
+        outputFile = os.path.join(output_dir, filename[:-4] + config.output_suffix_seg + config.output_image_type)
         print(outputFile)
-        outputFile2 = outputFile.replace('seg.tif', 'chm.tif')
+        outputFile2 = outputFile.replace(config.output_suffix_seg, config.output_suffix_chm)
         # ipdb.set_trace()
         if not os.path.exists(outputFile) or not os.path.exists(outputFile2):
             # print(outputFile)
@@ -710,14 +710,15 @@ def predict_ready_run(config, all_files, model_segcount, model_chm, output_dir, 
                     writeMaskToDisk(detectedMaskSeg, detectedMeta, outputFile,  image_type = config.output_image_type, output_shapefile_type = config.output_shapefile_type, write_as_type = config.output_dtype, th = th, create_countors = False)
 
                     # density
-                    writeMaskToDisk(detectedMaskDens, detectedMeta, outputFile.replace('seg.tif', 'density.tif'), image_type = config.output_image_type, output_shapefile_type = config.output_shapefile_type, write_as_type = 'float32', th = th, create_countors = False, convert = 0)
+                    outputFile_density = outputFile.replace(config.output_suffix_seg, config.output_suffix_density)
+                    writeMaskToDisk(detectedMaskDens, detectedMeta, outputFile_density, image_type = config.output_image_type, output_shapefile_type = config.output_shapefile_type, write_as_type = 'float32', th = th, create_countors = False, convert = 0)
                     counts[filename] = detectedMaskDens.sum()
 
                 if config.chmpred:
                     print('creating file', outputFile2)
                     detectedMaskChm, detectedMetaChm = detect_tree_rawtif_fi(config, model_chm, img, config.channels, width = config.WIDTH, height = config.HEIGHT, stride = config.STRIDE, normalize=config.normalize, maxnorm = config.maxnorm, upsample = config.upsample, downsave = config.downsave, upscale = config.upscale, rescale_values = config.rescale_values) # WIDTH and HEIGHT should be the same and in this case Stride is 50 % width
 
-                    writeMaskToDiskChm(detectedMaskChm, detectedMetaChm, outputFile.replace('seg.tif', 'chm.tif'), image_type = config.output_image_type, write_as_type = config.output_dtype_chm, scale = 0)
+                    writeMaskToDiskChm(detectedMaskChm, detectedMetaChm, outputFile2, image_type = config.output_image_type, write_as_type = config.output_dtype_chm, scale = 0)
 
                     if eva:
                         chmPath = config.gt_chm_dir  + config.chm_pref + filename[:-4] + config.chm_sufix
