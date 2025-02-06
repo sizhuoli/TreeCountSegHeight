@@ -6,6 +6,7 @@
 
 * Added [Docker image](https://hub.docker.com/repository/docker/sizhuoli/tree_expert/general) support for direct deployment (Feb 2025)
 
+* Enhanced code structure for large-scale prediction on local GPU machine (Feb 2025)
 
 ## Deploy with Docker :whale:
 
@@ -56,6 +57,16 @@ sudo docker run --gpus all -it --rm -v /path_to_local_config_folder/hyperps.yaml
 - Don't modify file paths in hyperps.yaml, as they are set to the Docker image's file system
 
 #### Please raise an issue if you encounter any problems with the Docker image or need new functionalities (e.g., fine-tuning mode, resolution change, etc.)
+
+
+
+## Enhancements in the code structure (Feb 2025)
+### This is an upgrade to the original code for [Working with local GPU machine](#working-with-local-gpu-machine-computer)
+
+- Config files are now more organized, see /config/hyperps_local.yaml
+- Model ensembling is supported for large-scale prediction
+- Instead of running ```python main4_large_scale_inference_transfer_other_data.py```, Now you run ```python main_local.py```
+
 
 
 ## Open Data!! Training and testing data released for research purposes
