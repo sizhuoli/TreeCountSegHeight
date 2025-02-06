@@ -4,7 +4,61 @@
 
 * See a followup tutorial for building a tree database using this project [here](https://github.com/sizhuoli/TreePointsStepbyStep).
 
-## NEW!! Training and testing data released for research purposes
+* Added [Docker image](https://hub.docker.com/repository/docker/sizhuoli/tree_expert/general) support for direct deployment (Feb 2025)
+
+
+## Deploy with Docker :whale:
+
+You need:
+
+- A GPU machine
+- Images to predict (RGB or more bands, around 20 cm spatial resolution)
+
+You don't need:
+
+- To install any dependencies
+- To download the models (they will be auto-downloaded)
+
+You get:
+
+- Predictions like those in /example_1km_tile_tif/predictions/
+- Flexibility to choose color bands and models for prediction
+- More robust prediction by ensemble models
+
+
+### Quick instructions
+
+0. The Docker image is built to run the large-scale prediction file (the original main4_large_scale_inference_transfer_other_data.py) in a deployment environment.
+1. Install Docker on your GPU machine && check installation with `docker --version`
+2. Pull the image: `sudo docker pull sizhuoli/tree_expert:v20`
+3. Download the config file from this repo (config/hyperps.yaml) and modify configs as needed
+4. Run the image with the following command (change paths to your local folders):
+
+```
+sudo docker run --gpus all -it --rm -v /path_to_local_config_folder/hyperps.yaml:/app/config.yaml -v /path_to_local_image_folder/:/app/images/ -v /path_to_local_prediction_folder/:/app/predictions/ sizhuoli/tree_expert:v20
+```
+5. Check the predictions in the local prediction folder (e.g. /path_to_local_prediction_folder/)
+6. You may need to change file permissions for the prediction folder to access the results (e.g. `sudo chmod -R 777 /path_to_local_prediction_folder/`)
+
+### Details
+
+#### What's included in the Docker image
+
+- Complete working environment; note that you need to install Nvidia Container Toolkit for GPU support
+- Trained models will be auto-downloaded and stored in the Docker image for prediction
+
+#### What's your flexibility for prediction
+
+- Specify color band order of your input images
+- Choose which models to use for prediction (e.g. RGB, RGBNIR, RGBNIRNDVI; models are trained on different color bands)
+- Ensemble prediction is supported (e.g. you get combined predictions from RGB and RGBNIR models)
+- See instructions in the default config file (config/hyperps.yaml) for more details
+- Don't modify file paths in hyperps.yaml, as they are set to the Docker image's file system
+
+#### Please raise an issue if you encounter any problems with the Docker image or need new functionalities (e.g., fine-tuning mode, resolution change, etc.)
+
+
+## Open Data!! Training and testing data released for research purposes
 
 
 - Tree crown delineation data now available [here](https://sid.erda.dk/sharelink/eFt21tspNe)
