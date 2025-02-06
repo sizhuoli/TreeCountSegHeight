@@ -1,0 +1,42 @@
+general:
+    input_image_dir: '/app/images/' # don't modify, path in container
+    input_image_type: '.tif'  # '.tif'#'.jp2'
+    input_image_pref: '1km'  # prefix of image file names, can be used to filter out images
+    channels: # dic storing channel bands and its corresponding index
+        red: 0
+        green: 1
+        blue: 2
+        infrared: 3 # in case of missing bands, set to None
+    output_dir: '/app/predictions/' # don't modify, path in container
+    output_suffix_seg: '_seg' # for segmentation
+    output_suffix_density: '_density' # for density
+    output_image_type: '.tif'
+    output_prefix: 'pred_'
+    overwrite_analysed_files: False
+    output_dtype_seg: 'uint8'
+    output_dtype_density: 'float32'
+
+
+
+predict:
+    model_save_path: '/app/saved_models/' # don't modify, path in container
+    models_in_use: # list of models to use
+        - 'rgb' # rgb model
+        - 'rgbNir' # rgb+nir model, comment out if not using
+        - 'rgbNirNdvi' # rgb+nir+ndvi model, comment out if not using
+    fillmiss: 0 # only fill in missing preds
+    segcountpred: 1 # whether predict for segcount
+    normalize: 1 # patch norm
+    multires: 0
+    saveresult: 1
+    input_size: 256 # model input size
+    inputBN: False
+    threshold: 0.5
+    BATCH_SIZE: 112 # Depends upon GPU memory and WIDTH and HEIGHT
+    WIDTH: 256 # crop size
+    HEIGHT: 256
+    STRIDE: 64 #224 or 196   # STRIDE: WIDTH means no overlap, STRIDE: WIDTH/2 means 50 % overlap in prediction
+    workers: 30
+
+
+

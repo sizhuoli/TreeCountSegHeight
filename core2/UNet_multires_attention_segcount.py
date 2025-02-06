@@ -13,7 +13,7 @@ from tensorflow.keras import regularizers
 import tensorflow.keras.backend as K
 
 
-def UNet(input_shape,input_label_channel, layer_count=64, regularizers = regularizers.l2(0.0001), gaussian_noise=0.1, weight_file = None, inputBN = 0):
+def UNet(input_shape,input_label_channel=1, layer_count=64, regularizers = regularizers.l2(0.0001), gaussian_noise=0.1, weight_file = None, inputBN = 0):
         """ Method to declare the UNet model.
 
         Args:
@@ -99,10 +99,10 @@ def UNet(input_shape,input_label_channel, layer_count=64, regularizers = regular
         c9 = layers.Conv2D(1*layer_count, (3, 3), activation='relu', padding='same')(c9)
         n9 = layers.BatchNormalization()(c9)
 
-        d = layers.Conv2D(len(input_label_channel), (1, 1), activation='sigmoid', kernel_regularizer= regularizers, name = 'output_seg')(n9)
+        d = layers.Conv2D(input_label_channel, (1, 1), activation='sigmoid', kernel_regularizer= regularizers, name = 'output_seg')(n9)
 
         # density map
-        d2 = layers.Conv2D(len(input_label_channel), (1, 1), activation='linear', kernel_regularizer= regularizers, name = 'output_dens')(n9)
+        d2 = layers.Conv2D(input_label_channel, (1, 1), activation='linear', kernel_regularizer= regularizers, name = 'output_dens')(n9)
 
         seg_model = models.Model(inputs=[input_img1, input_img2], outputs=[d, d2])
         if weight_file:
