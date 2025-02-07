@@ -6,3 +6,4 @@ models/
 logs/
 predictions/
 data*
+raw_imagery/
