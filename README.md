@@ -10,6 +10,10 @@
 
 ## Deploy with Docker :whale:
 
+#### Note a separate license for this Docker image: :warning: CC-BY-NC-SA 4.0
+
+### Quick introduction
+
 You need:
 
 - A GPU machine
@@ -65,7 +69,7 @@ sudo docker run --gpus all -it --rm -v /path_to_local_config_folder/hyperps.yaml
 
 - Config files are now more organized, see /config/hyperps_local.yaml
 - Model ensembling is supported for large-scale prediction
-- Instead of running ```python main4_large_scale_inference_transfer_other_data.py```, Now you run ```python main_local.py```
+- Instead of running ```python main4_large_scale_inference_transfer_other_data.py```, now you run ```python main_local.py```
 
 
 
