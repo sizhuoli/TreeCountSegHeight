@@ -35,12 +35,12 @@ You get:
 
 0. The Docker image is built to run the large-scale prediction file (the original main4_large_scale_inference_transfer_other_data.py) in a deployment environment.
 1. Install Docker on your GPU machine && check installation with `docker --version`
-2. Pull the image: `sudo docker pull sizhuoli/tree_expert:v20`
+2. Pull the image: `sudo docker pull sizhuoli/tree_expert:latest`
 3. Download the config file from this repo (config/hyperps.yaml) and modify configs as needed
 4. Run the image with the following command (change paths to your local folders):
 
 ```
-sudo docker run --gpus all -it --rm -v /path_to_local_config_folder/hyperps.yaml:/app/config.yaml -v /path_to_local_image_folder/:/app/images/ -v /path_to_local_prediction_folder/:/app/predictions/ sizhuoli/tree_expert:v20
+sudo docker run --gpus all -it --rm -v /path_to_local_config_folder/hyperps.yaml:/app/config.yaml -v /path_to_local_image_folder/:/app/images/ -v /path_to_local_prediction_folder/:/app/predictions/ sizhuoli/tree_expert:latest
 ```
 5. Check the predictions in the local prediction folder (e.g. /path_to_local_prediction_folder/)
 6. You may need to change file permissions for the prediction folder to access the results (e.g. `sudo chmod -R 777 /path_to_local_prediction_folder/`)

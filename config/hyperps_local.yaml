@@ -1,7 +1,7 @@
 general:
     input_image_dir: '/home/sizhuo/Downloads/test1km_2/'
     input_image_type: '.tif'  # '.tif'#'.jp2'
-    input_image_pref: '1km'  # prefix of image file names, can be used to filter out images
+    input_image_pref: ''  # prefix of image file names, can be used to filter out images
     channels: # dic storing channel bands and its corresponding index
         red: 0
         green: 1
