@@ -83,18 +83,27 @@ class ModelManager:
         print('=============================')
 
 
-    def download_weights(self, config):
-
+    def download_weights(self, config, weights_download_Path = None):
+        MODEL_SOURCE = os.getenv("MODEL_SOURCE", "download")
         if not os.path.exists(config.predict.model_save_path):
             os.makedirs(config.predict.model_save_path, exist_ok=True)
             # permisson
             os.chmod(config.predict.model_save_path, 0o777)
 
-        weights_download_Path = config.predict.model_save_path + 'weights.zip'
-        if not os.path.exists(weights_download_Path) and not len(glob.glob(config.predict.model_save_path + '**/*.h5', recursive=True)) > 0:
+        # if already exists, skip downloading
+        if MODEL_SOURCE == 'local':
+            if os.path.exists(config.predict.model_save_path):
+                print('Using locally downloaded model weights')
+            else:
+                raise FileNotFoundError('Model weights not found locally at:', config.predict.model_save_path)
+        elif MODEL_SOURCE == 'download':
+            weights_download_Path = config.predict.model_save_path + 'gS7JX84yvu.zip'
+            # if not len(glob.glob(config.predict.model_save_path + '**/*.h5', recursive=True)) > 0:
             print('Downloading model weights from:', self.model_url)
             import wget
             wget.download(self.model_url, weights_download_Path)
+        else:
+            raise ValueError('MODEL_SOURCE must be either local or download')
 
 
         if len(glob.glob(config.predict.model_save_path + '**/*.h5', recursive=True)) == 0:
@@ -118,8 +127,10 @@ class ModelManager:
                 print('Supported model names: rgb, rgbNir, rgbNirNdvi; please open a new issue if you need support for other models')
                 raise NotImplementedError
 
-        print('Model weights:', self.trained_model_path)
         print('=============================')
+        print('Model weights ready:')
+        for model_name, model_path in self.trained_model_path.items():
+            print(model_name, model_path)
         #
 
 
@@ -260,11 +271,14 @@ class ModelManager:
             temp_im1 = img.read(window = window)
             temp_im1 = np.transpose(temp_im1, axes=(1,2,0))
             if self.calculate_ndvi:
-                NDVI = (temp_im1[..., config.general.channels['infrared']].astype(float) - temp_im1[..., config.general.channels['red']].astype(float)) \
-                       / (temp_im1[..., config.general.channels['infrared']].astype(float) + temp_im1[..., config.general.channels['red']].astype(float))
-                NDVI = NDVI[..., np.newaxis]
+                try:
+                    NDVI = (temp_im1[..., config.general.channels['infrared']].astype(float) - temp_im1[..., config.general.channels['red']].astype(float)) \
+                           / (temp_im1[..., config.general.channels['infrared']].astype(float) + temp_im1[..., config.general.channels['red']].astype(float))
+                    NDVI = NDVI[..., np.newaxis]
 
-                temp_im1 = np.append(temp_im1, NDVI, axis = -1)
+                    temp_im1 = np.append(temp_im1, NDVI, axis = -1)
+                except:
+                    raise ValueError('NDVI calculation failed; check if red and infrared bands are available')
 
 
             if config.predict.normalize:

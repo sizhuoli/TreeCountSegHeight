@@ -19,6 +19,7 @@ COPY environment_trees_updated_docker.yml /app/environment.yml
 RUN conda env create --name trees --file environment.yml
 RUN echo "conda activate trees" >> ~/.bashrc
 ENV CONDA_DEFAULT_ENV=trees
+ENV MODEL_SOURCE=download
 
 RUN mkdir -p /app/predictions/ /app/saved_models/
 

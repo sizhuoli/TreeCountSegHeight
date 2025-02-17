@@ -40,7 +40,7 @@ You get:
 4. Run the image with the following command (change paths to your local folders):
 
 ```
-sudo docker run --gpus all -it --rm -v /path_to_local_config_folder/hyperps.yaml:/app/config.yaml -v /path_to_local_image_folder/:/app/images/ -v /path_to_local_prediction_folder/:/app/predictions/ sizhuoli/tree_expert:latest
+sudo docker run --gpus all -it --rm -v /path_to_local_config_folder/hyperps.yaml:/app/config/hyperps.yaml -v /path_to_local_image_folder/:/app/images/ -v /path_to_local_prediction_folder/:/app/predictions/ sizhuoli/tree_expert:latest
 ```
 5. Check the predictions in the local prediction folder (e.g. /path_to_local_prediction_folder/)
 6. You may need to change file permissions for the prediction folder to access the results (e.g. `sudo chmod -R 777 /path_to_local_prediction_folder/`)
@@ -59,6 +59,10 @@ sudo docker run --gpus all -it --rm -v /path_to_local_config_folder/hyperps.yaml
 - Ensemble prediction is supported (e.g. you get combined predictions from RGB and RGBNIR models)
 - See instructions in the default config file (config/hyperps.yaml) for more details
 - Don't modify file paths in hyperps.yaml, as they are set to the Docker image's file system
+- In case you don't want to repeat model downloading at runtime, you could download the models manually and mount the local model path at runtime. Follow these steps:
+    - 1. Download the models manually and store locally `wget -P /path_to_local_model_folder/ https://sid.erda.dk/share_redirect/gS7JX84yvu'
+    - 2. Docker run with MODEL_SOURCE=local and mount the local model path:
+    `sudo docker run -e MODEL_SOURCE=local -v /path_to_local_model_folder/:/app/saved_models/ --gpus all -it --rm -v /path_to_local_config_folder/hyperps.yaml:/app/config/hyperps.yaml -v /path_to_local_image_folder/:/app/images/ -v /path_to_local_prediction_folder/:/app/predictions/ sizhuoli/tree_expert:latest`
 
 #### Please raise an issue if you encounter any problems with the Docker image or need new functionalities (e.g., fine-tuning mode, resolution change, etc.)
 
