@@ -238,8 +238,10 @@ class trainer:
         elif not self.config.multires:
             from core2.UNet_attention_segcount import UNet
         # ipdb.set_trace()
+        # self.model = UNet([self.config.BATCH_SIZE, *self.config.input_shape],
+        #                   self.config.input_label_channel, inputBN=self.config.inputBN)
         self.model = UNet([self.config.BATCH_SIZE, *self.config.input_shape],
-                          self.config.input_label_channel, inputBN=self.config.inputBN)
+                          inputBN=self.config.inputBN)
         self.model.load_weights(self.config.model_path)
 
         # save logs
