@@ -158,7 +158,7 @@ def calculateBoundaryWeight(polygonsInArea, scale_polygon = 1.5, output_plot = T
         pol1 = gps.GeoSeries(tempPolygonDf.iloc[i][0])
         sc = pol1.scale(xfact=scale_polygon, yfact=scale_polygon, zfact=scale_polygon, origin='center')
         scc = pd.DataFrame(columns=['id', 'geometry'])
-        scc = scc.append({'id': None, 'geometry': sc[0]}, ignore_index=True)
+        scc = scc._append({'id': None, 'geometry': sc[0]}, ignore_index=True)
         scc = gps.GeoDataFrame(pd.concat([scc]*len(tempPolygonDf), ignore_index=True))
 
         pol2 = gps.GeoDataFrame(tempPolygonDf[~tempPolygonDf.index.isin([i])])
@@ -166,16 +166,16 @@ def calculateBoundaryWeight(polygonsInArea, scale_polygon = 1.5, output_plot = T
         pol2 = gps.GeoDataFrame(pol2.scale(xfact=scale_polygon, yfact=scale_polygon, zfact=scale_polygon, origin='center'))
         pol2.columns = ['geometry']
 
-        #invalid intersection operations topo error
+        pol2 = pol2.set_geometry('geometry')
+        scc = scc.set_geometry('geometry')
         try:
-
             ints = scc.intersection(pol2)
-            for k in range(len(ints)):
-                if ints.iloc[k]!=None:
-                    if ints.iloc[k].is_empty !=1:
-                        new_c.append(ints.iloc[k])
+            new_c.extend([ints.iloc[k] for k in range(len(ints)) if ints.iloc[k]!=None])
         except:
-            print('Intersection error')
+            print('Intersection error, skipping (no panic if this only happens rarely)')
+
+
+
     new_c = gps.GeoSeries(new_c)
     new_cc = gps.GeoDataFrame({'geometry': new_c})
     new_cc.columns = ['geometry']
