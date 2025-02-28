@@ -151,7 +151,7 @@ def calculateBoundaryWeight(polygonsInArea, scale_polygon = 1.5, output_plot = T
         return gps.GeoDataFrame({})
     tempPolygonDf = pd.DataFrame(polygonsInArea)
     tempPolygonDf.reset_index(drop=True,inplace=True)
-    tempPolygonDf = gps.GeoDataFrame(tempPolygonDf.drop(columns=['id']))
+    tempPolygonDf = gps.GeoDataFrame(tempPolygonDf)
     new_c = []
     #for each polygon in area scale, compare with other polygons:
     for i in tqdm(range(len(tempPolygonDf))):
