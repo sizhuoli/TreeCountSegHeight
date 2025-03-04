@@ -113,12 +113,13 @@ class trainer:
         elif not self.config.multires:
             print('*********************Single res*********************')
             if not self.config.ifBN:
-                from core2.UNet_attention_segcount_noBN import UNet
+                raise ValueError('Turn on batch normalization for best performance')
             elif self.config.ifBN:
                 from core2.UNet_attention_segcount import UNet
 
-        self.model = UNet([self.config.BATCH_SIZE, *self.config.input_shape],self.config.input_label_channel, inputBN = self.config.inputBN)
-
+        # self.model = UNet([self.config.BATCH_SIZE, *self.config.input_shape],self.config.input_label_channel, inputBN = self.config.inputBN)
+        self.model = UNet([self.config.BATCH_SIZE, *self.config.input_shape],
+                          inputBN=self.config.inputBN)
         return self.model
 
     def train(self):

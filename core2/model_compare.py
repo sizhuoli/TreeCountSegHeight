@@ -76,8 +76,10 @@ class eva_segcount:
                 from core2.UNet_multires_attention_segcount import UNet
             elif not self.config.multires:
                 from core2.UNet_attention_segcount import UNet
+            # modeli = UNet([self.config.BATCH_SIZE, *self.config.input_shape],
+            #                   self.config.input_label_channel, inputBN=self.config.inputBN)
             modeli = UNet([self.config.BATCH_SIZE, *self.config.input_shape],
-                              self.config.input_label_channel, inputBN=self.config.inputBN)
+                              inputBN=self.config.inputBN)
             modeli.load_weights(mod)
             modeli.compile(optimizer=OPTIMIZER, loss=tversky,
                                metrics=[dice_coef, dice_loss, specificity, sensitivity, accuracy, miou, weight_miou])
